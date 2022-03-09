@@ -1,0 +1,14 @@
+[package]
+name = "cfg_rust_features"
+version = "0.1.0"
+description = "Set cfg options according to Rust compiler, language, and library features."
+authors = ["Derick Eddington"]
+license = "Unlicense"
+repository = "https://github.com/DerickEddington/cfg_rust_features"
+edition = "2021"
+rust-version = "1.56"
+readme = "README.md"
+
+[dependencies]
+autocfg = "1"
+version_check = "0.9"
