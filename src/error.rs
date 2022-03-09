@@ -12,6 +12,7 @@ enum Kind
 {
     AutoCfg(autocfg::Error),
     VersionCheck,
+    UnsupportedFeatureTodo(String),
 }
 
 impl From<autocfg::Error> for Error
@@ -32,6 +33,16 @@ impl From<VersionCheckError> for Error
     }
 }
 
+pub(crate) struct UnsupportedFeatureTodoError(pub(crate) String);
+
+impl From<UnsupportedFeatureTodoError> for Error
+{
+    fn from(e: UnsupportedFeatureTodoError) -> Self
+    {
+        Self(Kind::UnsupportedFeatureTodo(e.0))
+    }
+}
+
 impl fmt::Display for Error
 {
     fn fmt(
@@ -42,6 +53,7 @@ impl fmt::Display for Error
         match &self.0 {
             Kind::AutoCfg(e) => fmt::Display::fmt(e, f),
             Kind::VersionCheck => f.write_str("version_check error"),
+            Kind::UnsupportedFeatureTodo(msg) => f.write_str(&msg),
         }
     }
 }
@@ -53,6 +65,7 @@ impl std::error::Error for Error
         match &self.0 {
             Kind::AutoCfg(e) => Some(e),
             Kind::VersionCheck => None,
+            Kind::UnsupportedFeatureTodo(_) => None,
         }
     }
 }

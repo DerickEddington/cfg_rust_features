@@ -12,3 +12,11 @@ readme = "README.md"
 [dependencies]
 autocfg = "1"
 version_check = "0.9"
+
+[dev-dependencies]
+tempfile = "3"
+filedescriptor = "0.8"
+
+[[test]]
+name = "pretend_build_script"
+harness = false

@@ -54,7 +54,10 @@ mod helpers;
 
 pub use error::Error;
 use {
-    error::VersionCheckError,
+    error::{
+        UnsupportedFeatureTodoError,
+        VersionCheckError,
+    },
     helpers::{
         emit_cargo_instruction,
         emit_rust_feature,
@@ -62,9 +65,6 @@ use {
     },
     std::collections::HashMap,
 };
-
-
-const REPO_ISSUES_URL: &str = "https://github.com/DerickEddington/cfg_rust_features/issues";
 
 
 /// Tell Cargo to not default to scanning the entire package directory for changes, but to check
@@ -82,6 +82,8 @@ pub fn emit_rerun_if_changed_file(filename: &str)
 /// Gathered when a [new intance is created](CfgRustFeatures::new).  Used to emit
 /// [conditional-compilation configuration-options for use with the `cfg` et al
 /// attributes](https://doc.rust-lang.org/reference/conditional-compilation.html).
+///
+/// Intended to be used from a package's build script.
 #[derive(Debug)]
 pub struct CfgRustFeatures
 {
@@ -106,12 +108,21 @@ impl CfgRustFeatures
     /// Gather the information about the current Rust compiler, and return the value that can
     /// perform the operations with it.
     ///
+    /// Intended to be called from a package's build script.
+    ///
     /// # Errors
-    /// If the information gathering fails.  (E.g. if `rustc` could not be run.)
+    ///
+    /// If the information gathering fails.  (E.g., if the `OUT_DIR` environment variable is not
+    /// set, or if `rustc` could not be run.)
     pub fn new() -> Result<Self, Error>
     {
+        Self::with_autocfg(autocfg::AutoCfg::new()?)
+    }
+
+    fn with_autocfg(autocfg: autocfg::AutoCfg) -> Result<Self, Error>
+    {
         Ok(Self {
-            autocfg:       autocfg::AutoCfg::new()?,
+            autocfg,
             version_check: {
                 let (version, channel, date) =
                     version_check::triple().ok_or(VersionCheckError)?;
@@ -142,7 +153,7 @@ impl CfgRustFeatures
     ///     "step_trait",
     ///     "unwrap_infallible",
     ///     "unstable_features",
-    /// ]);
+    /// ])?;
     /// # Ok(())
     /// # }
     /// ```
@@ -158,14 +169,14 @@ impl CfgRustFeatures
     /// A [`HashMap`] that indicates whether each of the given features was found to be supported
     /// or not.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// If a feature name is unsupported currently.  The panic message will show the URL where a
-    /// new issue may be opened to request adding support for the feature.
+    /// If a feature name is unsupported currently.  The message will show the URL where a new
+    /// issue may be opened to request adding support for the feature.
     pub fn emit_rust_features<'l>(
         &self,
         features: impl IntoIterator<Item = &'l str>,
-    ) -> HashMap<&'l str, bool>
+    ) -> Result<HashMap<&'l str, bool>, Error>
     {
         use core::iter::repeat;
 
@@ -173,27 +184,27 @@ impl CfgRustFeatures
         let mut any_stable_rust_feature = false;
 
         for (feature, is_stable) in &mut features {
-            *is_stable = self.emit_rust_feature(feature);
+            *is_stable = self.emit_rust_feature(feature)?;
             any_stable_rust_feature = *is_stable || any_stable_rust_feature;
         }
-        if any_stable_rust_feature && self.probe_rust_feature("cfg_version").is_some() {
+        if any_stable_rust_feature && self.probe_rust_feature("cfg_version")?.is_some() {
             emit_warning("Rust feature cfg_version is now stable. Consider using instead.");
         }
-        features
+        Ok(features)
     }
 
     fn emit_rust_feature(
         &self,
         feature: &str,
-    ) -> bool
+    ) -> Result<bool, UnsupportedFeatureTodoError>
     {
-        if let Some(key_category) = self.probe_rust_feature(feature) {
+        Ok(if let Some(key_category) = self.probe_rust_feature(feature)? {
             emit_rust_feature(key_category, feature);
             true
         }
         else {
             false
-        }
+        })
     }
 
     /// Tests whether the current `rustc` provides the given compiler/language/library feature as
@@ -204,7 +215,7 @@ impl CfgRustFeatures
     fn probe_rust_feature(
         &self,
         feature: &str,
-    ) -> Option<&'static str>
+    ) -> Result<Option<&'static str>, UnsupportedFeatureTodoError>
     {
         // TODO: Could improve with some static CATEGORY_TABLE: Once that associates feature to
         // category, which would allow factoring-out redundant `const CATEGORY` and redundant
@@ -214,25 +225,63 @@ impl CfgRustFeatures
             "cfg_version" => {
                 const CATEGORY: &str = "lang";
                 const EXPR: &str = r#"{ #[cfg(version("1.0"))] struct X; X }"#;
-                self.autocfg.probe_expression(EXPR).then(|| CATEGORY)
+                Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
+            },
+            "never_type" => {
+                const CATEGORY: &str = "lang";
+                const TYPE: &str = "!";
+                Ok(self.autocfg.probe_type(TYPE).then(|| CATEGORY))
             },
             "step_trait" => {
                 const CATEGORY: &str = "lib";
                 const PATH: &str = "std::iter::Step";
-                self.autocfg.probe_path(PATH).then(|| CATEGORY)
+                Ok(self.autocfg.probe_path(PATH).then(|| CATEGORY))
             },
             "unstable_features" => {
                 const CATEGORY: &str = "comp";
-                self.version_check.channel.supports_features().then(|| CATEGORY)
+                Ok(self.version_check.channel.supports_features().then(|| CATEGORY))
             },
             "unwrap_infallible" => {
                 const CATEGORY: &str = "lib";
                 const EXPR: &str = r#"Ok::<(), core::convert::Infallible>(()).into_ok()"#;
-                self.autocfg.probe_expression(EXPR).then(|| CATEGORY)
+                Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
             },
-            #[allow(clippy::todo)]
-            _ => todo!("Request support for feature {:?} at: {}", feature, REPO_ISSUES_URL),
+            _ => Err(UnsupportedFeatureTodoError(format!(
+                "To request support for feature {:?}, open an issue at: {}",
+                feature,
+                env!("CARGO_PKG_REPOSITORY")
+            ))),
         }
     }
 }
 
+
+#[cfg(test)]
+mod tests
+{
+    use {
+        super::CfgRustFeatures,
+        std::error::Error,
+        tempfile::tempdir,
+    };
+
+    #[allow(clippy::multiple_inherent_impl)]
+    impl CfgRustFeatures
+    {
+        fn for_test() -> Result<Self, Box<dyn Error>>
+        {
+            let out_dir = tempdir()?;
+            let ac = autocfg::AutoCfg::with_dir(out_dir.path())?;
+            let it = Self::with_autocfg(ac)?;
+            out_dir.close()?;
+            Ok(it)
+        }
+    }
+
+    #[test]
+    fn new() -> Result<(), Box<dyn Error>>
+    {
+        drop(CfgRustFeatures::for_test()?);
+        Ok(())
+    }
+}
