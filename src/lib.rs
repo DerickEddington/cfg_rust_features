@@ -69,6 +69,8 @@ pub type FeatureName<'l> = &'l str;
 pub type FeatureCategory = &'static str;
 /// Whether a feature is enabled and its category if so.
 pub type FeatureEnabled = Option<FeatureCategory>;
+/// Indicates whether a set of features was found to be enabled and the category of each.
+pub type EnabledFeatures<'l> = HashMap<FeatureName<'l>, FeatureEnabled>;
 
 
 /// Tell Cargo to not default to scanning the entire package directory for changes, but to check
@@ -197,7 +199,7 @@ impl CfgRustFeatures
     pub fn emit_rust_features<'l>(
         &self,
         features_names: impl IntoIterator<Item = FeatureName<'l>>,
-    ) -> Result<HashMap<FeatureName<'l>, FeatureEnabled>, UnsupportedFeatureTodoError>
+    ) -> Result<EnabledFeatures<'l>, UnsupportedFeatureTodoError>
     {
         use core::iter::repeat;
 
