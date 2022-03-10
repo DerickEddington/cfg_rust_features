@@ -49,16 +49,17 @@
 )]
 
 
-mod error;
+mod errors;
 mod helpers;
 
-pub use error::Error;
+
+pub use errors::UnsupportedFeatureTodoError;
 use {
-    error::{
-        UnsupportedFeatureTodoError,
-        VersionCheckError,
+    errors::VersionCheckError,
+    std::{
+        collections::HashMap,
+        error::Error,
     },
-    std::collections::HashMap,
 };
 
 
@@ -114,21 +115,19 @@ impl CfgRustFeatures
     /// # Errors
     /// If the information gathering fails.  (E.g., if the `OUT_DIR` environment variable is not
     /// set, or if `rustc` could not be run.)
-    pub fn new() -> Result<Self, Error>
+    pub fn new() -> Result<Self, Box<dyn Error>>
     {
         Self::with_autocfg(autocfg::AutoCfg::new()?)
     }
 
-    fn with_autocfg(autocfg: autocfg::AutoCfg) -> Result<Self, Error>
+    fn with_autocfg(autocfg: autocfg::AutoCfg) -> Result<Self, Box<dyn Error>>
     {
-        Ok(Self {
-            autocfg,
-            version_check: {
-                let (version, channel, date) =
-                    version_check::triple().ok_or(VersionCheckError)?;
-                VersionCheck { version, channel, date }
-            },
-        })
+        if let Some((version, channel, date)) = version_check::triple() {
+            Ok(Self { autocfg, version_check: VersionCheck { version, channel, date } })
+        }
+        else {
+            Err(VersionCheckError.into())
+        }
     }
 
     /// Set configuration options that indicate whether the currently-used version of Rust
@@ -148,8 +147,10 @@ impl CfgRustFeatures
     /// # Examples
     ///
     /// ```rust
-    /// # use cfg_rust_features::{CfgRustFeatures, Error};
-    /// # fn main() -> Result<(), Error> {
+    /// # use std::error::Error;
+    /// # use cfg_rust_features::CfgRustFeatures;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// #     let dir = tempfile::tempdir().unwrap();
     /// #     std::env::set_var("OUT_DIR", dir.path());
     /// #
@@ -196,7 +197,7 @@ impl CfgRustFeatures
     pub fn emit_rust_features<'l>(
         &self,
         features_names: impl IntoIterator<Item = FeatureName<'l>>,
-    ) -> Result<HashMap<FeatureName<'l>, FeatureEnabled>, Error>
+    ) -> Result<HashMap<FeatureName<'l>, FeatureEnabled>, UnsupportedFeatureTodoError>
     {
         use core::iter::repeat;
 
@@ -281,11 +282,7 @@ impl CfgRustFeatures
                 const EXPR: &str = r#"Ok::<(), core::convert::Infallible>(()).into_ok()"#;
                 Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
             },
-            _ => Err(UnsupportedFeatureTodoError(format!(
-                "To request support for feature {:?}, open an issue at: {}",
-                feature_name,
-                env!("CARGO_PKG_REPOSITORY")
-            ))),
+            _ => Err(UnsupportedFeatureTodoError::new(feature_name)),
         }
     }
 }
