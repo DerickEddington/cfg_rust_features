@@ -132,9 +132,12 @@ fn pretend_build_script() -> ResultDynErr<EnabledFeatures<'static>>
     emit_rerun_if_changed_file(file!());
 
     Ok(CfgRustFeatures::new()?.emit_rust_features([
+        // "cfg_version",  // Omitted to exercise not giving a supported one.
         "inner_deref",
+        "destructuring_assignment",
         "iter_zip",
         "never_type",
+        "question_mark",
         "step_trait",
         "unstable_features",
         "unwrap_infallible",
@@ -190,11 +193,14 @@ fn assert_results(
         // As required, because it is since 1.47, before our `package.rust-version`.  This
         // enables the testing that at least one feature is detected.
         Feature { category: "lib", name: "inner_deref" },
+        // As required, because it is since 1.13.
+        Feature { category: "lang", name: "question_mark" },
         // Feature { category: "lang", name: "rust1" }, // TODO: (or whatever the name is)
         // Feature { category: "lib",  name: "rust1" }, // TODO: (or whatever the name is)
     ]);
     let optional_features = HashSet::from([
         Feature { category: "comp", name: "unstable_features" },
+        Feature { category: "lang", name: "destructuring_assignment" },
         Feature { category: "lang", name: "never_type" },
         Feature { category: "lib", name: "iter_zip" },
         Feature { category: "lib", name: "step_trait" },

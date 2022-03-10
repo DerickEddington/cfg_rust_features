@@ -163,9 +163,11 @@ impl CfgRustFeatures
     /// #
     /// CfgRustFeatures::new()?.emit_rust_features([
     ///     "cfg_version",
+    ///     "destructuring_assignment",
     ///     "inner_deref",
     ///     "iter_zip",
     ///     "never_type",
+    ///     "question_mark",
     ///     "step_trait",
     ///     "unwrap_infallible",
     ///     "unstable_features",
@@ -176,11 +178,14 @@ impl CfgRustFeatures
     ///
     /// with `rustc` version `1.56`, will write to `stdout`:
     /// ```text
+    /// cargo:rustc-cfg=rust_lang_feature="question_mark"
     /// cargo:rustc-cfg=rust_lib_feature="inner_deref"
     /// ```
     ///
     /// or, with `rustc` version `1.59`, will write to `stdout`:
     /// ```text
+    /// cargo:rustc-cfg=rust_lang_feature="destructuring_assignment"
+    /// cargo:rustc-cfg=rust_lang_feature="question_mark"
     /// cargo:rustc-cfg=rust_lib_feature="iter_zip"
     /// cargo:rustc-cfg=rust_lib_feature="inner_deref"
     /// ```
@@ -188,6 +193,8 @@ impl CfgRustFeatures
     /// or, with `rustc` version `1.61.0-nightly`, will write to `stdout`:
     /// ```text
     /// cargo:rustc-cfg=rust_comp_feature="unstable_features"
+    /// cargo:rustc-cfg=rust_lang_feature="destructuring_assignment"
+    /// cargo:rustc-cfg=rust_lang_feature="question_mark"
     /// cargo:rustc-cfg=rust_lib_feature="inner_deref"
     /// cargo:rustc-cfg=rust_lib_feature="iter_zip"
     /// ```
@@ -258,6 +265,11 @@ impl CfgRustFeatures
                 const EXPR: &str = r#"{ #[cfg(version("1.0"))] struct X; X }"#;
                 Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
             },
+            "destructuring_assignment" => {
+                const CATEGORY: &str = "lang";
+                const EXPR: &str = r#"{ let (a, b); (a, b) = (1, 2); }"#;
+                Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
+            },
             "inner_deref" => {
                 const CATEGORY: &str = "lib";
                 const EXPR: &str = r#"Ok::<_, ()>(vec![1]).as_deref()"#;
@@ -272,6 +284,11 @@ impl CfgRustFeatures
                 const CATEGORY: &str = "lang";
                 const TYPE: &str = "!";
                 Ok(self.autocfg.probe_type(TYPE).then(|| CATEGORY))
+            },
+            "question_mark" => {
+                const CATEGORY: &str = "lang";
+                const EXPR: &str = r#"|| -> Result<(), ()> { Err(())? }"#;
+                Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
             },
             "step_trait" => {
                 const CATEGORY: &str = "lib";
