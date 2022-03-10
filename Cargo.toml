@@ -6,7 +6,7 @@ authors = ["Derick Eddington"]
 license = "Unlicense"
 repository = "https://github.com/DerickEddington/cfg_rust_features"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.56"  # Oldest that is 2021 Edition.
 readme = "README.md"
 
 [dependencies]

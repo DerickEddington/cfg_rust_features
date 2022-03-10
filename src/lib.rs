@@ -227,6 +227,16 @@ impl CfgRustFeatures
                 const EXPR: &str = r#"{ #[cfg(version("1.0"))] struct X; X }"#;
                 Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
             },
+            "inner_deref" => {
+                const CATEGORY: &str = "lib";
+                const EXPR: &str = r#"Ok::<_, ()>(vec![1]).as_deref()"#;
+                Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
+            },
+            "iter_zip" => {
+                const CATEGORY: &str = "lib";
+                const EXPR: &str = r#"std::iter::zip([1], ['a'])"#;
+                Ok(self.autocfg.probe_expression(EXPR).then(|| CATEGORY))
+            },
             "never_type" => {
                 const CATEGORY: &str = "lang";
                 const TYPE: &str = "!";

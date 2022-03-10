@@ -9,109 +9,195 @@ use {
         StdioDescriptor,
     },
     std::{
+        collections::HashSet,
         env,
+        error::Error,
         fs::File,
-        io,
+        io::{
+            self,
+            Read as _,
+        },
         path::Path,
     },
-    tempfile::tempdir,
+    tempfile::{
+        tempdir,
+        TempDir,
+    },
 };
 
 
-type PretendResult = Result<(), cfg_rust_features::Error>;
-type MainResult = Result<(), Box<dyn std::error::Error>>;
+type ResultDynErr<T> = Result<T, Box<dyn Error>>;
 
-
-fn with_redirected_stdout_stderr(
-    dir: &Path,
-    thunk: impl FnOnce() -> PretendResult,
-) -> MainResult
+#[non_exhaustive]
+pub struct CapturedStdio
 {
-    type StdoutStderr = (FileDescriptor, FileDescriptor);
-
-    fn set_stdout_stderr<F: AsRawFileDescriptor>(
-        stdout: &F,
-        stderr: &F,
-    ) -> Result<StdoutStderr, filedescriptor::Error>
-    {
-        let orig_stdout = FileDescriptor::redirect_stdio(stdout, StdioDescriptor::Stdout)?;
-        let orig_stderr = FileDescriptor::redirect_stdio(stderr, StdioDescriptor::Stderr)?;
-        Ok((orig_stdout, orig_stderr))
-    }
-
-    fn redirect_stdout_stderr(dir: &Path) -> Result<StdoutStderr, Box<dyn std::error::Error>>
-    {
-        fn create_file_in(
-            dir: &Path,
-            name: &str,
-        ) -> io::Result<File>
-        {
-            File::create(dir.join(name))
-        }
-
-        let stdout_file = create_file_in(dir, "stdout")?;
-        let stderr_file = create_file_in(dir, "stderr")?;
-        Ok(set_stdout_stderr(&stdout_file, &stderr_file)?)
-    }
-
-    let (orig_stdout, orig_stderr) = redirect_stdout_stderr(dir)?;
-    let result = thunk();
-    set_stdout_stderr(&orig_stdout, &orig_stderr)?;
-    Ok(result?)
+    /// Temporary directory where `stdout` and `stderr` are redirected into files.  Automatically
+    /// deleted.
+    dir:     TempDir,
+    /// `stdout` contents
+    pub out: String,
+    /// `stderr` contents
+    pub err: String,
 }
 
-fn pretend_build_script() -> PretendResult
+impl CapturedStdio
+{
+    pub fn new() -> Result<Self, impl Error>
+    {
+        tempdir().map(|dir| Self { dir, out: String::new(), err: String::new() })
+    }
+
+    pub fn dir(&self) -> &Path
+    {
+        self.dir.path()
+    }
+
+    pub fn for_call<V>(
+        &mut self,
+        func: impl FnOnce() -> V,
+    ) -> ResultDynErr<V>
+    {
+        type StdioFDs = (FileDescriptor, FileDescriptor);
+
+        fn redirect_to<F: AsRawFileDescriptor>(
+            stdout: &F,
+            stderr: &F,
+        ) -> Result<StdioFDs, filedescriptor::Error>
+        {
+            let orig_stdout = FileDescriptor::redirect_stdio(stdout, StdioDescriptor::Stdout)?;
+            let orig_stderr = FileDescriptor::redirect_stdio(stderr, StdioDescriptor::Stderr)?;
+            Ok((orig_stdout, orig_stderr))
+        }
+
+        fn redirect_in(dir: &Path) -> ResultDynErr<StdioFDs>
+        {
+            let create_file_in = |name| File::create(dir.join(name));
+            let stdout_file = create_file_in("stdout")?;
+            let stderr_file = create_file_in("stderr")?;
+            Ok(redirect_to(&stdout_file, &stderr_file)?)
+        }
+
+        // Temporarily redirect `stdout` and `stderr` to files in our temporary directory.
+        let (orig_stdout, orig_stderr) = redirect_in(self.dir())?;
+        // Call the given `thunk` with the redirection in effect.
+        let value = func();
+        // Revert the redirection.
+        redirect_to(&orig_stdout, &orig_stderr)?;
+        // Read and keep the captured outputs from the redirection.
+        self.load_captured()?;
+        Ok(value)
+    }
+
+    fn load_captured(&mut self) -> io::Result<()>
+    {
+        let load_to =
+            |name, string| File::open(self.dir.path().join(name))?.read_to_string(string);
+        load_to("stdout", &mut self.out)?;
+        load_to("stderr", &mut self.err)?;
+        Ok(())
+    }
+
+    pub fn show(
+        &self,
+        title: &str,
+    )
+    {
+        let print_delim = |name, contents| {
+            println!(
+                "
+=== {} {} ========================================================
+{}=== end {} =================================================================",
+                title, name, contents, name
+            )
+        };
+
+        print_delim("stdout", &self.out);
+        print_delim("stderr", &self.err);
+    }
+
+    pub fn delete(self) -> Result<(), impl Error>
+    {
+        self.dir.close()
+    }
+}
+
+
+/// Exactly like a `main` function of a build script could be.
+fn pretend_build_script() -> ResultDynErr<()>
 {
     emit_rerun_if_changed_file(file!());
 
     CfgRustFeatures::new()?.emit_rust_features([
-        "step_trait",
+        "inner_deref",
+        "iter_zip",
         "never_type",
-        "unwrap_infallible",
+        "step_trait",
         "unstable_features",
+        "unwrap_infallible",
     ])?;
 
     Ok(())
 }
 
-fn show_captured_stdout_stderr(dir: &Path) -> MainResult
+
+/// Enables having our own extra methods on [`CapturedStdio`].
+trait Asserter
 {
-    use std::io::Write as _;
-
-    // Accumulate what to show before actually showing it, in case an error happens before
-    // finishing.
-    let mut accum = Vec::new();
-    let mut show = |name| -> MainResult {
-        let mut captured = File::open(dir.join(name))?;
-        writeln!(
-            &mut accum,
-            "=== Build-Script {} ========================================================",
-            name,
-        )?;
-        io::copy(&mut captured, &mut accum)?;
-        writeln!(
-            &mut accum,
-            "================================================================================"
-        )?;
-        Ok(())
-    };
-
-    show("stdout")?;
-    show("stderr")?;
-    // Now actually show it.
-    io::copy(&mut &*accum, &mut io::stdout())?;
-    Ok(())
+    /// Must correspond to what [`pretend_build_script`] emits.
+    ///
+    /// Only checks the captured `stdout` contents, because only that is used by Cargo with build
+    /// scripts.
+    fn assert(&self);
 }
 
-fn main() -> MainResult
+impl Asserter for CapturedStdio
 {
+    fn assert(&self)
+    {
+        let lines: HashSet<&str> = {
+            let vec = Vec::from_iter(self.out.lines());
+            let set = HashSet::from_iter(vec.iter().copied());
+            assert_eq!(set.len(), vec.len()); // No duplicate lines.
+            set
+        };
+        let rerun_if_changed = format!("cargo:rerun-if-changed={}", file!());
+        let required = HashSet::from([
+            &*rerun_if_changed,
+            // As required, because it is since 1.47, before our `package.rust-version`.  This
+            // enables the testing that at least one feature is detected.
+            r#"cargo:rustc-cfg=rust_lib_feature="inner_deref""#,
+        ]);
+        let optional = HashSet::from([
+            r#"cargo:rustc-cfg=rust_lib_feature="iter_zip""#,
+            r#"cargo:rustc-cfg=rust_lang_feature="never_type""#,
+            r#"cargo:rustc-cfg=rust_lib_feature="step_trait""#,
+            r#"cargo:rustc-cfg=rust_lib_feature="unwrap_infallible""#,
+            r#"cargo:rustc-cfg=rust_comp_feature="unstable_features""#,
+        ]);
+        let allowed = HashSet::from_iter(required.union(&optional).copied());
+
+        assert!(lines.is_superset(&required));
+        assert!(lines.is_subset(&allowed));
+    }
+}
+
+
+fn main() -> ResultDynErr<()>
+{
+    let has_opt = {
+        let args = Vec::from_iter(env::args().skip(1));
+        move |opt| args.contains(&format!("--{}", opt))
+    };
+
     // Setup to pretend that this program is a build script.
-    let out_dir = tempdir()?;
-    env::set_var("OUT_DIR", out_dir.path());
+    let mut captured_stdio = CapturedStdio::new()?;
+    env::set_var("OUT_DIR", captured_stdio.dir());
 
-    let result = with_redirected_stdout_stderr(out_dir.path(), pretend_build_script);
-    show_captured_stdout_stderr(out_dir.path())?;
-
-    out_dir.close()?;
-    result
+    let call_result = captured_stdio.for_call(pretend_build_script)?;
+    if has_opt("show-output") {
+        captured_stdio.show("build-script");
+    }
+    captured_stdio.assert();
+    captured_stdio.delete()?;
+    call_result
 }
