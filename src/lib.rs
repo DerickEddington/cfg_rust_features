@@ -58,22 +58,23 @@ use {
         UnsupportedFeatureTodoError,
         VersionCheckError,
     },
-    helpers::{
-        emit_cargo_instruction,
-        emit_rust_feature,
-        emit_warning,
-    },
     std::collections::HashMap,
 };
 
 
+/// Name of a feature, as recognized by this crate.
+pub type FeatureName<'l> = &'l str;
+/// Name of a feature category, as recognized by this crate.
+pub type FeatureCategory = &'static str;
+/// Whether a feature is enabled and its category if so.
+pub type FeatureEnabled = Option<FeatureCategory>;
+
+
 /// Tell Cargo to not default to scanning the entire package directory for changes, but to check
 /// only given files, when deciding if a build script needs to be rerun.
-///
-/// Intended to be used once per each of the file(s) of a build script.
 pub fn emit_rerun_if_changed_file(filename: &str)
 {
-    emit_cargo_instruction("rerun-if-changed", Some(filename));
+    helpers::emit_cargo_instruction("rerun-if-changed", Some(filename));
 }
 
 
@@ -105,13 +106,12 @@ struct VersionCheck
 
 impl CfgRustFeatures
 {
-    /// Gather the information about the current Rust compiler, and return the value that can
+    /// Gather the information about the current Rust compiler, and return a new instance that can
     /// perform the operations with it.
     ///
     /// Intended to be called from a package's build script.
     ///
     /// # Errors
-    ///
     /// If the information gathering fails.  (E.g., if the `OUT_DIR` environment variable is not
     /// set, or if `rustc` could not be run.)
     pub fn new() -> Result<Self, Error>
@@ -134,6 +134,8 @@ impl CfgRustFeatures
     /// Set configuration options that indicate whether the currently-used version of Rust
     /// (compiler, language, and library) supports the given sequence of feature names.
     ///
+    /// Intended to be called from a package's build script.
+    ///
     /// The supported feature names are particular to this crate but do correspond to [The
     /// Unstable Book](https://doc.rust-lang.org/nightly/unstable-book/index.html) where
     /// appropriate, but there are some extra feature names, like `"unstable_features"`, that are
@@ -148,80 +150,103 @@ impl CfgRustFeatures
     /// ```rust
     /// # use cfg_rust_features::{CfgRustFeatures, Error};
     /// # fn main() -> Result<(), Error> {
+    /// #     let dir = tempfile::tempdir().unwrap();
+    /// #     std::env::set_var("OUT_DIR", dir.path());
+    /// #
     /// CfgRustFeatures::new()?.emit_rust_features([
+    ///     "cfg_version",
+    ///     "inner_deref",
+    ///     "iter_zip",
     ///     "never_type",
     ///     "step_trait",
     ///     "unwrap_infallible",
     ///     "unstable_features",
     /// ])?;
-    /// # Ok(())
+    /// #     Ok(())
     /// # }
     /// ```
     ///
-    /// will set the following configuration options:
-    ///
+    /// with `rustc` version `1.56`, will write to `stdout`:
     /// ```text
-    /// TODO
+    /// cargo:rustc-cfg=rust_lib_feature="inner_deref"
+    /// ```
+    ///
+    /// or, with `rustc` version `1.59`, will write to `stdout`:
+    /// ```text
+    /// cargo:rustc-cfg=rust_lib_feature="iter_zip"
+    /// cargo:rustc-cfg=rust_lib_feature="inner_deref"
+    /// ```
+    ///
+    /// or, with `rustc` version `1.61.0-nightly`, will write to `stdout`:
+    /// ```text
+    /// cargo:rustc-cfg=rust_comp_feature="unstable_features"
+    /// cargo:rustc-cfg=rust_lib_feature="inner_deref"
+    /// cargo:rustc-cfg=rust_lib_feature="iter_zip"
     /// ```
     ///
     /// # Returns
     ///
-    /// A [`HashMap`] that indicates whether each of the given features was found to be supported
-    /// or not.
+    /// A [`HashMap`] that indicates whether each of the given features was found to be enabled
+    /// and its category if so.
     ///
     /// # Errors
     ///
-    /// If a feature name is unsupported currently.  The message will show the URL where a new
-    /// issue may be opened to request adding support for the feature.
+    /// If a feature name is unsupported by this crate currently.  The message will show the URL
+    /// where a new issue may be opened to request adding support for the feature.
     pub fn emit_rust_features<'l>(
         &self,
-        features: impl IntoIterator<Item = &'l str>,
-    ) -> Result<HashMap<&'l str, bool>, Error>
+        features_names: impl IntoIterator<Item = FeatureName<'l>>,
+    ) -> Result<HashMap<FeatureName<'l>, FeatureEnabled>, Error>
     {
         use core::iter::repeat;
 
-        let mut features: HashMap<_, _> = features.into_iter().zip(repeat(false)).collect();
+        let mut features_enabled: HashMap<_, _> =
+            features_names.into_iter().zip(repeat(None)).collect();
         let mut any_stable_rust_feature = false;
 
-        for (feature, is_stable) in &mut features {
-            *is_stable = self.emit_rust_feature(feature)?;
-            any_stable_rust_feature = *is_stable || any_stable_rust_feature;
+        for (feature_name, enabled) in &mut features_enabled {
+            *enabled = self.emit_rust_feature(feature_name)?;
+            any_stable_rust_feature = enabled.is_some() || any_stable_rust_feature;
         }
         if any_stable_rust_feature && self.probe_rust_feature("cfg_version")?.is_some() {
-            emit_warning("Rust feature cfg_version is now stable. Consider using instead.");
+            helpers::emit_warning(
+                "Rust feature cfg_version is now stable. Consider using instead.",
+            );
         }
-        Ok(features)
+        Ok(features_enabled)
     }
 
     fn emit_rust_feature(
         &self,
-        feature: &str,
-    ) -> Result<bool, UnsupportedFeatureTodoError>
+        feature_name: FeatureName<'_>,
+    ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
-        Ok(if let Some(key_category) = self.probe_rust_feature(feature)? {
-            emit_rust_feature(key_category, feature);
-            true
-        }
-        else {
-            false
+        self.probe_rust_feature(feature_name).map(|enabled| {
+            enabled.map(|category| {
+                helpers::emit_rust_feature(category, feature_name);
+                category
+            })
         })
     }
 
     /// Tests whether the current `rustc` provides the given compiler/language/library feature as
     /// stable (i.e. without needing the `#![feature(...)]` of nightly).
     ///
-    /// `feature`: One of the "feature flags" named by
-    /// <https://doc.rust-lang.org/nightly/unstable-book/index.html>.
+    /// # Returns
+    /// The category of the feature if the feature is enabled, or else `None`.
+    ///
+    /// # Errors
+    /// If the feature name is unsupported by this crate currently.
     fn probe_rust_feature(
         &self,
-        feature: &str,
-    ) -> Result<Option<&'static str>, UnsupportedFeatureTodoError>
+        feature_name: FeatureName<'_>,
+    ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
         // TODO: Could improve with some static CATEGORY_TABLE: Once that associates feature to
         // category, which would allow factoring-out redundant `const CATEGORY` and redundant
         // `.then(|| ...)`.
 
-        match feature {
+        match feature_name {
             "cfg_version" => {
                 const CATEGORY: &str = "lang";
                 const EXPR: &str = r#"{ #[cfg(version("1.0"))] struct X; X }"#;
@@ -258,7 +283,7 @@ impl CfgRustFeatures
             },
             _ => Err(UnsupportedFeatureTodoError(format!(
                 "To request support for feature {:?}, open an issue at: {}",
-                feature,
+                feature_name,
                 env!("CARGO_PKG_REPOSITORY")
             ))),
         }

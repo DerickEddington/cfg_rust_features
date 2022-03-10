@@ -3,7 +3,8 @@ use std::fmt;
 /// Error type that might occur when trying to gather information about the Rust compiler.
 ///
 /// Opaque because this makes no guarantees about the internal details, but does implement
-/// [`std::error::Error`] which may be used to get the source of an error.
+/// [`std::error::Error`] which may be used to [`Display`](fmt::Display) or get the source of an
+/// error.
 #[derive(Debug)]
 pub struct Error(Kind);
 
