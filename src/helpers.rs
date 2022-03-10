@@ -10,7 +10,8 @@ pub(crate) fn emit_cargo_instruction(
     println!("cargo:{}{}", instruction, arg.map(|s| format!("={}", s)).as_deref().unwrap_or(""));
 }
 
-pub(crate) fn emit_warning(message: &str)
+/// Tell Cargo to display the given warning message after a build script has finished running.
+pub fn emit_warning(message: &str)
 {
     emit_cargo_instruction("warning", Some(message));
 }

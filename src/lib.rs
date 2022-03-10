@@ -53,7 +53,10 @@ mod errors;
 mod helpers;
 
 
-pub use errors::UnsupportedFeatureTodoError;
+pub use {
+    errors::UnsupportedFeatureTodoError,
+    helpers::emit_warning,
+};
 use {
     errors::VersionCheckError,
     std::{
@@ -75,6 +78,8 @@ pub type EnabledFeatures<'l> = HashMap<FeatureName<'l>, FeatureEnabled>;
 
 /// Tell Cargo to not default to scanning the entire package directory for changes, but to check
 /// only given files, when deciding if a build script needs to be rerun.
+///
+/// Intended to be called from a package's build script.
 pub fn emit_rerun_if_changed_file(filename: &str)
 {
     helpers::emit_cargo_instruction("rerun-if-changed", Some(filename));
@@ -87,7 +92,7 @@ pub fn emit_rerun_if_changed_file(filename: &str)
 /// [conditional-compilation configuration-options for use with the `cfg` et al
 /// attributes](https://doc.rust-lang.org/reference/conditional-compilation.html).
 ///
-/// Intended to be used from a package's build script.
+/// Intended to be called from a package's build script.
 #[derive(Debug)]
 pub struct CfgRustFeatures
 {
@@ -212,9 +217,7 @@ impl CfgRustFeatures
             any_stable_rust_feature = enabled.is_some() || any_stable_rust_feature;
         }
         if any_stable_rust_feature && self.probe_rust_feature("cfg_version")?.is_some() {
-            helpers::emit_warning(
-                "Rust feature cfg_version is now stable. Consider using instead.",
-            );
+            emit_warning("Rust feature cfg_version is now stable. Consider using instead.");
         }
         Ok(features_enabled)
     }
