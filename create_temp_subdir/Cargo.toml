@@ -1,0 +1,4 @@
+[package]
+name = "create_temp_subdir"
+version = "0.0.0"
+authors = ["Derick Eddington"]

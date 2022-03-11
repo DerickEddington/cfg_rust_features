@@ -1,4 +1,10 @@
-pub(crate) fn emit_cargo_instruction(
+/// Print to `stdout` a build-script instruction for Cargo.
+///
+/// # Panics
+/// If either argument is an empty string.
+///
+/// (Actually private to the crate, not part of public API.  Is only `pub` for old Rust versions.)
+pub fn emit_cargo_instruction(
     instruction: &str,
     arg: Option<&str>,
 )
@@ -7,7 +13,7 @@ pub(crate) fn emit_cargo_instruction(
     if let Some(arg) = arg {
         assert!(!arg.is_empty());
     }
-    println!("cargo:{}{}", instruction, arg.map(|s| format!("={}", s)).as_deref().unwrap_or(""));
+    println!("cargo:{}{}", instruction, arg.map(|s| format!("={}", s)).unwrap_or("".into()));
 }
 
 /// Tell Cargo to display the given warning message after a build script has finished running.
@@ -16,8 +22,8 @@ pub fn emit_warning(message: &str)
     emit_cargo_instruction("warning", Some(message));
 }
 
-/// Pass a key-value configuration option to the compiler to be set for conditional compilation,
-/// for features of the Rust compiler, language, or standard library.
+/// Tell Cargo to pass a key-value configuration option to the compiler to be set for conditional
+/// compilation, for features of the Rust compiler, language, or standard library.
 ///
 /// This enables using [the standard conditional-compilation
 /// forms](https://doc.rust-lang.org/reference/conditional-compilation.html) (i.e. the `cfg`
@@ -37,7 +43,9 @@ pub fn emit_warning(message: &str)
 /// # Panics
 ///
 /// If `category` is not one of the acceptable categories.
-pub(crate) fn emit_rust_feature(
+///
+/// (Actually private to the crate, not part of public API.  Is only `pub` for old Rust versions.)
+pub fn emit_rust_feature(
     category: &str,
     name: &str,
 )
