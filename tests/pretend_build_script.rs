@@ -1,3 +1,10 @@
+// Note: This will print to stderr what look like errors but these are only from autocfg doing the
+// intended probing (as it runs its own rustc commands that expectedly might have compiler
+// errors), and this will also print the build-script instructions to stdout, and these prints
+// will be intermixed (and their order is randomized, due to the current internal iteration of a
+// HashMap).  It can be helpful to redirect these, e.g.:
+//   cargo test --test pretend_build_script 2> /dev/null
+
 #![allow(unknown_lints, deprecated, bare_trait_objects)]
 
 extern crate cfg_rust_features;
