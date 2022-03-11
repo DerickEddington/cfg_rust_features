@@ -242,14 +242,9 @@ impl CfgRustFeatures
 
         let mut features_enabled: HashMap<_, _> =
             features_names.into_iter().zip(repeat(None)).collect();
-        let mut any_stable_rust_feature = false;
 
         for (feature_name, enabled) in &mut features_enabled {
             *enabled = try!(self.emit_rust_feature(feature_name));
-            any_stable_rust_feature = enabled.is_some() || any_stable_rust_feature;
-        }
-        if any_stable_rust_feature && try!(self.probe_rust_feature("cfg_version")).is_some() {
-            emit_warning("Rust feature cfg_version is now stable. Consider using instead.");
         }
         Ok(features_enabled)
     }
