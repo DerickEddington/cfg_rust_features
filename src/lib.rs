@@ -67,12 +67,12 @@ extern crate version_check;
 mod errors;
 mod helpers;
 
-pub use errors::UnsupportedFeatureTodoError;
-pub use helpers::emit_warning;
-
-use errors::VersionCheckError;
 use std::collections::HashMap;
 use std::error::Error;
+
+pub use errors::UnsupportedFeatureTodoError;
+use errors::VersionCheckError;
+pub use helpers::emit_warning;
 
 
 /// Name of a feature, as recognized by this crate.
@@ -143,8 +143,8 @@ impl CfgRustFeatures
     {
         if let Some((version, channel, date)) = version_check::triple() {
             Ok(CfgRustFeatures {
-                autocfg: autocfg,
-                version_check: VersionCheck { version: version, channel: channel, date: date }
+                autocfg:       autocfg,
+                version_check: VersionCheck { version: version, channel: channel, date: date },
             })
         }
         else {
@@ -321,7 +321,12 @@ impl CfgRustFeatures
             },
             "unstable_features" => {
                 const CATEGORY: &'static str = "comp";
-                Ok(if self.version_check.channel.supports_features() { Some(CATEGORY) } else { None })
+                Ok(if self.version_check.channel.supports_features() {
+                    Some(CATEGORY)
+                }
+                else {
+                    None
+                })
             },
             "unwrap_infallible" => {
                 const CATEGORY: &'static str = "lib";

@@ -10,19 +10,16 @@
 extern crate cfg_rust_features;
 extern crate create_temp_subdir;
 
-use cfg_rust_features::{
-    emit_rerun_if_changed_file,
-    CfgRustFeatures,
-    EnabledFeatures,
-    FeatureCategory,
-    FeatureName,
-};
-use create_temp_subdir::TempSubDir;
-use std::env;
 use std::collections::HashSet;
+use std::env;
 use std::error::Error;
 use std::hash::Hash;
 use std::iter::FromIterator;
+
+use cfg_rust_features::{
+    emit_rerun_if_changed_file, CfgRustFeatures, EnabledFeatures, FeatureCategory, FeatureName,
+};
+use create_temp_subdir::TempSubDir;
 
 type ResultDynErr<T> = Result<T, Box<Error>>;
 
@@ -77,9 +74,8 @@ fn assert_results(call_result: &EnabledFeatures<'static>)
         name:     FeatureName<'static>,
     }
 
-    let required_features = HashSet::from_iter(vec![
-        Feature { category: "lang", name: "rust1" },
-    ]);
+    let required_features =
+        HashSet::from_iter(vec![Feature { category: "lang", name: "rust1" }]);
     let optional_features = HashSet::from_iter(vec![
         Feature { category: "comp", name: "unstable_features" },
         Feature { category: "lang", name: "destructuring_assignment" },
@@ -114,36 +110,4 @@ fn assert_results(call_result: &EnabledFeatures<'static>)
 
         assert_enabled_fits_required_and_allowed(enabled, required, allowed);
     }
-
-/*  Requires an ability to capture stdio.  Was from an old revision before supporting Rust 1.0.0.
-
-    // Check the stdout lines, emitted by the call to CfgRustFeatures::emit_rust_features, which
-    // instruct Cargo to set compilation parameters like the `cfg` predicates.
-    {
-        fn fmt_cargo_instructions(features: &HashSet<Feature>) -> Vec<String>
-        {
-            Vec::from_iter(features.iter().map(|feature| {
-                format!("cargo:rustc-cfg=rust_{}_feature={:?}", feature.category, feature.name)
-            }))
-        }
-
-        let lines: HashSet<String> = {
-            let vec = Vec::from_iter(captured_stdio.out.lines().map(String::from));
-            let set = HashSet::from_iter(vec.iter().cloned());
-            assert_eq!(set.len(), vec.len()); // No duplicate lines.
-            set
-        };
-        let required = HashSet::from_iter(
-            [
-                &[format!("cargo:rerun-if-changed={}", file!())][..],
-                &fmt_cargo_instructions(&required_features),
-            ]
-            .concat(),
-        );
-        let optional = HashSet::from_iter(fmt_cargo_instructions(&optional_features));
-        let allowed = HashSet::from_iter(required.union(&optional).cloned());
-
-        assert_enabled_fits_required_and_allowed(lines, required, allowed);
-    }
-*/
 }

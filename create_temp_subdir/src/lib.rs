@@ -1,8 +1,8 @@
-use std::io;
-use std::path::{PathBuf, Path};
 use std::env::temp_dir;
-use std::fs::{create_dir, remove_dir_all};
 use std::ffi::OsStr;
+use std::fs::{create_dir, remove_dir_all};
+use std::io;
+use std::path::{Path, PathBuf};
 
 
 pub struct TempSubDir(PathBuf);

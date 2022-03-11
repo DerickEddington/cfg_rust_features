@@ -14,8 +14,7 @@ impl UnsupportedFeatureTodoError
     {
         UnsupportedFeatureTodoError(format!(
             "To request support for feature {:?}, open an issue at: {}",
-            feature_name,
-            "https://github.com/DerickEddington/cfg_rust_features"
+            feature_name, "https://github.com/DerickEddington/cfg_rust_features"
         ))
     }
 }
