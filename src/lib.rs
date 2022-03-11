@@ -60,26 +60,6 @@ cargo doc --open
 // Warn about this one but avoid annoying hits for dev-dependencies.
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
-/*  With Rust 1.0.0, these would be invalid syntax (`cfg_attr` would not even work to avoid).
-#![warn(
-    clippy::all,
-    clippy::pedantic,
-    clippy::restriction,
-    clippy::cargo,
-)]
-// Exclude (re-allow) undesired lints included in above groups.
-#![allow(
-    clippy::missing_inline_in_public_items,
-    clippy::implicit_return,
-    clippy::blanket_clippy_restriction_lints,
-    clippy::default_numeric_fallback,
-    clippy::separated_literal_suffix,
-    clippy::missing_docs_in_private_items,
-    clippy::pattern_type_mismatch,
-    clippy::shadow_reuse
-)]
-*/
-
 
 extern crate autocfg;
 extern crate version_check;
@@ -365,7 +345,6 @@ mod tests
     extern crate create_temp_subdir;
     use super::{autocfg, CfgRustFeatures, ResultDynErr};
 
-    // #[allow(clippy::multiple_inherent_impl)]  // Incompatible syntax for Rust 1.0.0.
     impl CfgRustFeatures
     {
         fn for_test(name: &str) -> ResultDynErr<Self>
