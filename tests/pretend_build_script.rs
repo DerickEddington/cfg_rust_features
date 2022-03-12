@@ -10,7 +10,7 @@
 extern crate cfg_rust_features;
 extern crate create_temp_subdir;
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::error::Error;
 use std::hash::Hash;
@@ -51,64 +51,74 @@ fn main()
     let out_dir = TempSubDir::new("intgtest-pretend_build_script").unwrap();
     env::set_var("OUT_DIR", &out_dir);
 
-    assert_results(&pretend_build_script().unwrap());
+    assert_enabled_features(&pretend_build_script().unwrap());
 }
 
 
+/// Check the `EnabledFeatures` `HashMap` value, returned by the call to
+/// `CfgRustFeatures::emit_rust_features`, which indicates whether each of the chosen features was
+/// found to be enabled and its categories if so.
+///
 /// Must correspond to what [`pretend_build_script`] emits.
-fn assert_results(call_result: &EnabledFeatures)
+fn assert_enabled_features(enabled: &EnabledFeatures)
 {
+    /// Element of `HashSet`s.  Similar shape as a Set iterator yields.  `BTreeSet` needed because
+    /// it `impl`s `Hash`.
+    type Feature = (FeatureName, BTreeSet<FeatureCategory>);
+
+    macro_rules! set {
+        [$t:ty: $($e:expr),*] => {
+            <$t>::from_iter(vec![$($e),*])
+        }
+    }
+    macro_rules! hset {
+        [$($rest:tt)*] => {
+            set![HashSet<_>: $($rest)*]
+        }
+    }
+    macro_rules! bset {
+        [$($rest:tt)*] => {
+            set![BTreeSet<_>: $($rest)*]
+        }
+    }
+
+    fn bset_from_hset<T: Clone + Hash + Ord>(hset: &HashSet<T>) -> BTreeSet<T>
+    {
+        hset.iter().cloned().collect()
+    }
+
+    fn from_enabled_features(enabled_features: &EnabledFeatures) -> HashSet<Feature>
+    {
+        enabled_features
+            .iter()
+            .filter_map(|(&k, v)| v.as_ref().map(|c| (k, bset_from_hset(c))))
+            .collect()
+    }
+
     fn assert_enabled_fits_required_and_allowed<T: Hash + Eq>(
-        enabled: HashSet<T>,
-        required: HashSet<T>,
-        allowed: HashSet<T>,
+        enabled: &HashSet<T>,
+        required: &HashSet<T>,
+        allowed: &HashSet<T>,
     )
     {
-        assert!(enabled.is_superset(&required));
-        assert!(enabled.is_subset(&allowed));
+        assert!(enabled.is_superset(required));
+        assert!(enabled.is_subset(allowed));
     }
 
-    #[derive(Hash, Eq, PartialEq, Clone, Copy)]
-    struct Feature
-    {
-        category: FeatureCategory,
-        name:     FeatureName,
-    }
 
-    let required_features =
-        HashSet::from_iter(vec![Feature { category: "lang", name: "rust1" }]);
-    let optional_features = HashSet::from_iter(vec![
-        Feature { category: "comp", name: "unstable_features" },
-        Feature { category: "lang", name: "destructuring_assignment" },
-        Feature { category: "lang", name: "never_type" },
-        Feature { category: "lang", name: "question_mark" },
-        Feature { category: "lib", name: "inner_deref" },
-        Feature { category: "lib", name: "iter_zip" },
-        Feature { category: "lib", name: "step_trait" },
-        Feature { category: "lib", name: "unwrap_infallible" },
-    ]);
-    let allowed_features = &required_features | &optional_features;
+    let required = hset![("rust1", bset!["comp", "lang", "lib"])];
+    let optional = hset![
+        ("unstable_features", bset!["comp"]),
+        ("destructuring_assignment", bset!["lang"]),
+        ("never_type", bset!["lang"]),
+        ("question_mark", bset!["lang"]),
+        ("inner_deref", bset!["lib"]),
+        ("iter_zip", bset!["lib"]),
+        ("step_trait", bset!["lib"]),
+        ("unwrap_infallible", bset!["lib"])
+    ];
+    let allowed = &required | &optional;
 
-    // Check the EnabledFeatures HashMap value, returned by the call to
-    // CfgRustFeatures::emit_rust_features, which indicates whether each of the chosen features
-    // was found to be enabled and its category if so.
-    {
-        type Enabled = HashSet<(FeatureName, FeatureCategory)>;
-
-        fn from_hashmap(hashmap: &EnabledFeatures) -> Enabled
-        {
-            hashmap.iter().filter_map(|(&k, v)| v.map(|c| (k, c))).collect()
-        }
-
-        fn from_hashset(hashset: &HashSet<Feature>) -> Enabled
-        {
-            hashset.iter().map(|feat| (feat.name, feat.category)).collect()
-        }
-
-        let enabled = from_hashmap(call_result);
-        let required = from_hashset(&required_features);
-        let allowed = from_hashset(&allowed_features);
-
-        assert_enabled_fits_required_and_allowed(enabled, required, allowed);
-    }
+    let enabled = from_enabled_features(enabled);
+    assert_enabled_fits_required_and_allowed(&enabled, &required, &allowed);
 }

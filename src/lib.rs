@@ -66,14 +66,17 @@ extern crate version_check;
 
 mod errors;
 mod helpers;
+mod recognized;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::hash::Hash;
+use std::iter::FromIterator;
 
 pub use errors::UnsupportedFeatureTodoError;
 use errors::VersionCheckError;
 pub use helpers::emit_warning;
+use recognized::Probe;
 
 
 /// Name of a feature, as recognized by this crate.
@@ -82,9 +85,11 @@ impl<T: AsRef<str> + Eq + Hash> FeatureName for T {}
 
 /// Name of a feature category, as defined by this crate.
 pub type FeatureCategory = &'static str;
-/// Whether a feature is enabled and its category if so.
-pub type FeatureEnabled = Option<FeatureCategory>;
-/// Indicates whether each from a set of features was found to be enabled and its category.
+/// Set of feature categories that a feature belongs to.
+pub type FeatureCategories = HashSet<FeatureCategory>;
+/// Whether a feature is enabled and its categories if so.
+pub type FeatureEnabled = Option<FeatureCategories>;
+/// Indicates whether each from a set of features was found to be enabled and its categories.
 pub type EnabledFeatures<F> = HashMap<F, FeatureEnabled>;
 
 /// Rust 1.0.0 does not support the `dyn` keyword.  This helps be clearer.
@@ -229,8 +234,8 @@ impl CfgRustFeatures
     /// # Returns
     ///
     /// A [`HashMap`] that indicates whether each of the given features was found to be enabled
-    /// and its category if so.  May be ignored, since the instructions for Cargo are also written
-    /// out.
+    /// and its categories if so.  May be ignored, since the instructions for Cargo are also
+    /// written out.
     ///
     /// # Errors
     ///
@@ -260,9 +265,11 @@ impl CfgRustFeatures
         let feature_name = feature_name.as_ref();
 
         self.probe_rust_feature(feature_name).map(|enabled| {
-            enabled.map(|category| {
-                helpers::emit_rust_feature(category, feature_name);
-                category
+            enabled.map(|categories| {
+                for category in &categories {
+                    helpers::emit_rust_feature(category, feature_name);
+                }
+                categories
             })
         })
     }
@@ -271,7 +278,7 @@ impl CfgRustFeatures
     /// stable (i.e. without needing the `#![feature(...)]` of nightly).
     ///
     /// # Returns
-    /// The category of the feature if the feature is enabled, or else `None`.
+    /// The categories of the feature if the feature is enabled, or else `None`.
     ///
     /// # Errors
     /// If the feature name is unsupported by this crate currently.
@@ -281,67 +288,23 @@ impl CfgRustFeatures
     ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
         let feature_name = feature_name.as_ref();
-
-        // TODO: Could improve with some static CATEGORY_TABLE: Once that associates feature to
-        // category, which would allow factoring-out redundant `const CATEGORY` and redundant
-        // `.then(|| ...)`.
-
-        match feature_name {
-            "cfg_version" => {
-                const CATEGORY: &'static str = "lang";
-                const EXPR: &'static str = r#"{ #[cfg(version("1.0"))] struct X; X }"#;
-                Ok(if self.autocfg.probe_expression(EXPR) { Some(CATEGORY) } else { None })
-            },
-            "destructuring_assignment" => {
-                const CATEGORY: &'static str = "lang";
-                const EXPR: &'static str = r#"{ let (_a, _b); (_a, _b) = (1, 2); }"#;
-                Ok(if self.autocfg.probe_expression(EXPR) { Some(CATEGORY) } else { None })
-            },
-            "inner_deref" => {
-                const CATEGORY: &'static str = "lib";
-                const EXPR: &'static str = r#"Ok::<_, ()>(vec![1]).as_deref()"#;
-                Ok(if self.autocfg.probe_expression(EXPR) { Some(CATEGORY) } else { None })
-            },
-            "iter_zip" => {
-                const CATEGORY: &'static str = "lib";
-                const EXPR: &'static str = r#"std::iter::zip([1], ['a'])"#;
-                Ok(if self.autocfg.probe_expression(EXPR) { Some(CATEGORY) } else { None })
-            },
-            "never_type" => {
-                const CATEGORY: &'static str = "lang";
-                const TYPE: &'static str = "!";
-                Ok(if self.autocfg.probe_type(TYPE) { Some(CATEGORY) } else { None })
-            },
-            "question_mark" => {
-                const CATEGORY: &'static str = "lang";
-                const EXPR: &'static str = r#"|| -> Result<(), ()> { Err(())? }"#;
-                Ok(if self.autocfg.probe_expression(EXPR) { Some(CATEGORY) } else { None })
-            },
-            "rust1" => {
-                const CATEGORY: &'static str = "lang";
-                Ok(Some(CATEGORY))
-            },
-            "step_trait" => {
-                const CATEGORY: &'static str = "lib";
-                const PATH: &'static str = "std::iter::Step";
-                Ok(if self.autocfg.probe_path(PATH) { Some(CATEGORY) } else { None })
-            },
-            "unstable_features" => {
-                const CATEGORY: &'static str = "comp";
-                Ok(if self.version_check.channel.supports_features() {
-                    Some(CATEGORY)
-                }
-                else {
-                    None
-                })
-            },
-            "unwrap_infallible" => {
-                const CATEGORY: &'static str = "lib";
-                const EXPR: &'static str = r#"Ok::<(), core::convert::Infallible>(()).into_ok()"#;
-                Ok(if self.autocfg.probe_expression(EXPR) { Some(CATEGORY) } else { None })
-            },
-            _ => Err(UnsupportedFeatureTodoError::new(feature_name)),
+        let feature = try!(
+            recognized::get(feature_name)
+                .ok_or_else(|| UnsupportedFeatureTodoError::new(feature_name))
+        );
+        let enabled = match feature.probe {
+            Probe::Expr(e) => self.autocfg.probe_expression(e),
+            Probe::Type(t) => self.autocfg.probe_type(t),
+            Probe::Path(p) => self.autocfg.probe_path(p),
+            Probe::AlwaysEnabled => true,
+            Probe::UnstableFeatures => self.version_check.channel.supports_features(),
+        };
+        Ok(if enabled {
+            Some(HashSet::from_iter(feature.categories.iter().map(|&x| x)))
         }
+        else {
+            None
+        })
     }
 }
 
