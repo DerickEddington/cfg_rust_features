@@ -69,6 +69,7 @@ mod helpers;
 
 use std::collections::HashMap;
 use std::error::Error;
+use std::hash::Hash;
 
 pub use errors::UnsupportedFeatureTodoError;
 use errors::VersionCheckError;
@@ -76,13 +77,15 @@ pub use helpers::emit_warning;
 
 
 /// Name of a feature, as recognized by this crate.
-pub type FeatureName<'l> = &'l str;
+pub trait FeatureName: AsRef<str> + Eq + Hash {}
+impl<T: AsRef<str> + Eq + Hash> FeatureName for T {}
+
 /// Name of a feature category, as defined by this crate.
 pub type FeatureCategory = &'static str;
 /// Whether a feature is enabled and its category if so.
 pub type FeatureEnabled = Option<FeatureCategory>;
 /// Indicates whether each from a set of features was found to be enabled and its category.
-pub type EnabledFeatures<'l> = HashMap<FeatureName<'l>, FeatureEnabled>;
+pub type EnabledFeatures<F> = HashMap<F, FeatureEnabled>;
 
 /// Rust 1.0.0 does not support the `dyn` keyword.  This helps be clearer.
 pub type ResultDynErr<T> = Result<T, Box<Error>>;
@@ -233,10 +236,10 @@ impl CfgRustFeatures
     ///
     /// If a feature name is unsupported by this crate currently.  The message will show the URL
     /// where a new issue may be opened to request adding support for the feature.
-    pub fn emit_rust_features<'l, I: IntoIterator<Item = FeatureName<'l>>>(
+    pub fn emit_rust_features<F: FeatureName, I: IntoIterator<Item = F>>(
         &self,
         features_names: I,
-    ) -> Result<EnabledFeatures<'l>, UnsupportedFeatureTodoError>
+    ) -> Result<EnabledFeatures<F>, UnsupportedFeatureTodoError>
     {
         use std::iter::repeat;
 
@@ -249,11 +252,13 @@ impl CfgRustFeatures
         Ok(features_enabled)
     }
 
-    fn emit_rust_feature<'l>(
+    fn emit_rust_feature<F: FeatureName>(
         &self,
-        feature_name: FeatureName<'l>,
+        feature_name: F,
     ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
+        let feature_name = feature_name.as_ref();
+
         self.probe_rust_feature(feature_name).map(|enabled| {
             enabled.map(|category| {
                 helpers::emit_rust_feature(category, feature_name);
@@ -270,11 +275,13 @@ impl CfgRustFeatures
     ///
     /// # Errors
     /// If the feature name is unsupported by this crate currently.
-    fn probe_rust_feature<'l>(
+    fn probe_rust_feature<F: FeatureName>(
         &self,
-        feature_name: FeatureName<'l>,
+        feature_name: F,
     ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
+        let feature_name = feature_name.as_ref();
+
         // TODO: Could improve with some static CATEGORY_TABLE: Once that associates feature to
         // category, which would allow factoring-out redundant `const CATEGORY` and redundant
         // `.then(|| ...)`.

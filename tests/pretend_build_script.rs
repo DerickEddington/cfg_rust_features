@@ -16,16 +16,17 @@ use std::error::Error;
 use std::hash::Hash;
 use std::iter::FromIterator;
 
-use cfg_rust_features::{
-    emit_rerun_if_changed_file, CfgRustFeatures, EnabledFeatures, FeatureCategory, FeatureName,
-};
+use cfg_rust_features::{emit_rerun_if_changed_file, CfgRustFeatures, FeatureCategory};
 use create_temp_subdir::TempSubDir;
 
 type ResultDynErr<T> = Result<T, Box<Error>>;
 
+type FeatureName = &'static str;
+type EnabledFeatures = cfg_rust_features::EnabledFeatures<FeatureName>;
+
 
 /// Like a `main` function of a build script (modulo the `Ok` type).
-fn pretend_build_script() -> ResultDynErr<EnabledFeatures<'static>>
+fn pretend_build_script() -> ResultDynErr<EnabledFeatures>
 {
     emit_rerun_if_changed_file(file!());
 
@@ -55,7 +56,7 @@ fn main()
 
 
 /// Must correspond to what [`pretend_build_script`] emits.
-fn assert_results(call_result: &EnabledFeatures<'static>)
+fn assert_results(call_result: &EnabledFeatures)
 {
     fn assert_enabled_fits_required_and_allowed<T: Hash + Eq>(
         enabled: HashSet<T>,
@@ -71,7 +72,7 @@ fn assert_results(call_result: &EnabledFeatures<'static>)
     struct Feature
     {
         category: FeatureCategory,
-        name:     FeatureName<'static>,
+        name:     FeatureName,
     }
 
     let required_features =
@@ -92,9 +93,9 @@ fn assert_results(call_result: &EnabledFeatures<'static>)
     // CfgRustFeatures::emit_rust_features, which indicates whether each of the chosen features
     // was found to be enabled and its category if so.
     {
-        type Enabled = HashSet<(FeatureName<'static>, FeatureCategory)>;
+        type Enabled = HashSet<(FeatureName, FeatureCategory)>;
 
-        fn from_hashmap(hashmap: &EnabledFeatures<'static>) -> Enabled
+        fn from_hashmap(hashmap: &EnabledFeatures) -> Enabled
         {
             hashmap.iter().filter_map(|(&k, v)| v.map(|c| (k, c))).collect()
         }
