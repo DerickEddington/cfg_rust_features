@@ -246,24 +246,20 @@ impl CfgRustFeatures
         features_names: I,
     ) -> Result<EnabledFeatures<F>, UnsupportedFeatureTodoError>
     {
-        use std::iter::repeat;
+        let mut enabled_features = HashMap::new();
 
-        let mut features_enabled: HashMap<_, _> =
-            features_names.into_iter().zip(repeat(None)).collect();
-
-        for (feature_name, enabled) in &mut features_enabled {
-            *enabled = try!(self.emit_rust_feature(feature_name));
+        for name in features_names {
+            let enabled = try!(self.emit_rust_feature(name.as_ref()));
+            let _ = enabled_features.insert(name, enabled);
         }
-        Ok(features_enabled)
+        Ok(enabled_features)
     }
 
-    fn emit_rust_feature<F: FeatureName>(
+    fn emit_rust_feature(
         &self,
-        feature_name: F,
+        feature_name: &str,
     ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
-        let feature_name = feature_name.as_ref();
-
         self.probe_rust_feature(feature_name).map(|enabled| {
             enabled.map(|categories| {
                 for category in &categories {
@@ -282,12 +278,11 @@ impl CfgRustFeatures
     ///
     /// # Errors
     /// If the feature name is unsupported by this crate currently.
-    fn probe_rust_feature<F: FeatureName>(
+    fn probe_rust_feature(
         &self,
-        feature_name: F,
+        feature_name: &str,
     ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
-        let feature_name = feature_name.as_ref();
         let feature = try!(
             recognized::get(feature_name)
                 .ok_or_else(|| UnsupportedFeatureTodoError::new(feature_name))
