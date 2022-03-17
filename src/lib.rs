@@ -325,4 +325,19 @@ mod tests
     {
         assert!(CfgRustFeatures::for_test("unittest-lib-new").is_ok());
     }
+
+    #[test]
+    fn error()
+    {
+        use std::error::Error;
+
+        let features_names = &["rust1", "bogusness", "dummy"];
+        let cfg_rust_features = CfgRustFeatures::for_test("unittest-lib-error").unwrap();
+        let result = cfg_rust_features.emit_rust_features(features_names);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().description(),
+                   "To request support for feature \"bogusness\", open an issue at: \
+                    https://github.com/DerickEddington/cfg_rust_features");
+    }
 }
