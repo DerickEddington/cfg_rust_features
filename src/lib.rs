@@ -96,6 +96,29 @@ pub type EnabledFeatures<F> = HashMap<F, FeatureEnabled>;
 pub type ResultDynErr<T> = Result<T, Box<Error>>;
 
 
+/// Helper that does the common basic use of this crate.  Suitable as the body of the `main`
+/// function of a build script.
+///
+/// Calls [`CfgRustFeatures::emit_multiple`] on a temporary instance with the given features'
+/// names.  Also calls [`emit_rerun_if_changed_file`] with the name of the file in which this
+/// macro was invoked.
+///
+/// # Examples
+/// A `build.rs` can be as simple as:
+/// ```ignore
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     cfg_rust_features::emit!(["iter_zip"])
+/// }
+/// ```
+#[macro_export]
+macro_rules! emit {
+    ($features_names:expr) => {{
+        $crate::emit_rerun_if_changed_file(file!());
+        $crate::CfgRustFeatures::emit($features_names).map(|_| ())
+    }};
+}
+
+
 /// Tell Cargo to not default to scanning the entire package directory for changes, but to check
 /// only given files, when deciding if a build script needs to be rerun.
 ///
@@ -134,6 +157,14 @@ struct VersionCheck
 
 impl CfgRustFeatures
 {
+    /// Convenience that calls [`Self::emit_multiple`] on a temporary instance.
+    pub fn emit<F: FeatureName, I: IntoIterator<Item = F>>(
+        features_names: I
+    ) -> ResultDynErr<EnabledFeatures<F>>
+    {
+        Ok(try!(try!(CfgRustFeatures::new()).emit_multiple(features_names)))
+    }
+
     /// Gather the information about the current Rust compiler, and return a new instance that can
     /// perform the operations with it.
     ///
@@ -184,12 +215,12 @@ impl CfgRustFeatures
     /// # use create_temp_subdir::TempSubDir;
     /// #
     /// # fn main() {
-    /// #     let dir = TempSubDir::new("doctest-emit_rust_features").unwrap();
+    /// #     let dir = TempSubDir::new("doctest-emit_multiple").unwrap();
     /// #     std::env::set_var("OUT_DIR", &dir);
     /// #
     /// #     fn make_try_work() -> ResultDynErr<()> {
     /// let gathered_info_instance = try!(CfgRustFeatures::new());
-    /// let enabled_features = try!(gathered_info_instance.emit_rust_features(vec![
+    /// let enabled_features = try!(gathered_info_instance.emit_multiple(vec![
     ///     "cfg_version",
     ///     "destructuring_assignment",
     ///     "inner_deref",
@@ -241,7 +272,7 @@ impl CfgRustFeatures
     ///
     /// If a feature name is unsupported by this crate currently.  The message will show the URL
     /// where a new issue may be opened to request adding support for the feature.
-    pub fn emit_rust_features<F: FeatureName, I: IntoIterator<Item = F>>(
+    pub fn emit_multiple<F: FeatureName, I: IntoIterator<Item = F>>(
         &self,
         features_names: I,
     ) -> Result<EnabledFeatures<F>, UnsupportedFeatureTodoError>
@@ -249,18 +280,18 @@ impl CfgRustFeatures
         let mut enabled_features = HashMap::new();
 
         for name in features_names {
-            let enabled = try!(self.emit_rust_feature(name.as_ref()));
+            let enabled = try!(self.emit_single(name.as_ref()));
             let _ = enabled_features.insert(name, enabled);
         }
         Ok(enabled_features)
     }
 
-    fn emit_rust_feature(
+    fn emit_single(
         &self,
         feature_name: &str,
     ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
     {
-        self.probe_rust_feature(feature_name).map(|enabled| {
+        self.probe_single(feature_name).map(|enabled| {
             enabled.map(|categories| {
                 for category in &categories {
                     helpers::emit_rust_feature(category, feature_name);
@@ -278,7 +309,7 @@ impl CfgRustFeatures
     ///
     /// # Errors
     /// If the feature name is unsupported by this crate currently.
-    fn probe_rust_feature(
+    fn probe_single(
         &self,
         feature_name: &str,
     ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
@@ -333,7 +364,7 @@ mod tests
 
         let features_names = &["rust1", "bogusness", "dummy"];
         let cfg_rust_features = CfgRustFeatures::for_test("unittest-lib-error").unwrap();
-        let result = cfg_rust_features.emit_rust_features(features_names);
+        let result = cfg_rust_features.emit_multiple(features_names);
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().description(),

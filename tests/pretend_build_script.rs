@@ -30,7 +30,7 @@ fn pretend_build_script() -> ResultDynErr<EnabledFeatures>
 {
     emit_rerun_if_changed_file(file!());
 
-    Ok(try!(try!(CfgRustFeatures::new()).emit_rust_features(vec![
+    Ok(try!(try!(CfgRustFeatures::new()).emit_multiple(vec![
         // "cfg_version",  // Omitted to exercise not giving a supported one.
         "inner_deref",
         "destructuring_assignment",
@@ -56,7 +56,7 @@ fn main()
 
 
 /// Check the `EnabledFeatures` `HashMap` value, returned by the call to
-/// `CfgRustFeatures::emit_rust_features`, which indicates whether each of the chosen features was
+/// `CfgRustFeatures::emit_multiple`, which indicates whether each of the chosen features was
 /// found to be enabled and its categories if so.
 ///
 /// Must correspond to what [`pretend_build_script`] emits.
