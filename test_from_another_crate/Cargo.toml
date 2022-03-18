@@ -1,0 +1,10 @@
+[package]
+name = "test_from_another_crate"
+description = "Integration test of using the package in the parent directory from another crate."
+build = "build.rs"
+version = "0.0.0"
+# edition = "2015"
+rust-version = "1.0.0"
+
+[build-dependencies]
+cfg_rust_features = { path = ".." }
