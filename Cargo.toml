@@ -9,6 +9,12 @@ repository = "https://github.com/DerickEddington/cfg_rust_features"
 rust-version = "1.0.0"
 readme = "README.md"
 
+[workspace]
+# The `test_from_another_crate` package is independent, not a member of the
+# workspace, since it's a peculiar kind of integration test that tests
+# independent use.
+exclude = ["test_from_another_crate"]
+
 [dependencies]
 autocfg = "1"
 version_check = "0.9"
