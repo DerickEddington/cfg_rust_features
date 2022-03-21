@@ -8,6 +8,8 @@ repository = "https://github.com/DerickEddington/cfg_rust_features"
 # edition = "2015"
 rust-version = "1.0.0"
 readme = "README.md"
+categories = ["development-tools::build-utils", "rust-patterns"]
+keywords = ["cfg", "version", "autoconf", "build", "rustc"]
 
 [workspace]
 # The `test_from_another_crate` package is independent, not a member of the
