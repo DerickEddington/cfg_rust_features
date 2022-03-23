@@ -329,10 +329,31 @@ impl CfgRustFeatures
         features_names: I,
     ) -> Result<EnabledFeatures<F>, UnsupportedFeatureTodoError>
     {
+        let enabled_features = try!(self.probe_multiple(features_names));
+
+        for (name, enabled) in &enabled_features {
+            self.emit_single(name.as_ref(), enabled);
+        }
+        Ok(enabled_features)
+    }
+
+    /// Like [`Self::emit_multiple`] but does not write anything.  Use when only the return value
+    /// is of interest.
+    ///
+    /// # Returns
+    /// Same as [`Self::emit_multiple`].
+    ///
+    /// # Errors
+    /// Same as [`Self::emit_multiple`].
+    pub fn probe_multiple<F: FeatureName, I: IntoIterator<Item = F>>(
+        &self,
+        features_names: I,
+    ) -> Result<EnabledFeatures<F>, UnsupportedFeatureTodoError>
+    {
         let mut enabled_features = HashMap::new();
 
         for name in features_names {
-            let enabled = try!(self.emit_single(name.as_ref()));
+            let enabled = try!(self.probe_single(name.as_ref()));
             let _ = enabled_features.insert(name, enabled);
         }
         Ok(enabled_features)
@@ -341,16 +362,14 @@ impl CfgRustFeatures
     fn emit_single(
         &self,
         feature_name: &str,
-    ) -> Result<FeatureEnabled, UnsupportedFeatureTodoError>
+        enabled: &FeatureEnabled,
+    )
     {
-        self.probe_single(feature_name).map(|enabled| {
-            enabled.map(|categories| {
-                for category in &categories {
-                    helpers::emit_rust_feature(category, feature_name);
-                }
-                categories
-            })
-        })
+        if let &Some(ref categories) = enabled {
+            for category in categories {
+                helpers::emit_rust_feature(category, feature_name);
+            }
+        }
     }
 
     /// Tests whether the current `rustc` provides the given compiler/language/library feature as
