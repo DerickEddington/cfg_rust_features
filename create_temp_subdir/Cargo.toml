@@ -1,4 +1,8 @@
 [package]
 name = "create_temp_subdir"
+description = "Bare minimum for creating temporary directories, for the tests of the parent package."
+publish = false
 version = "0.0.0"
 authors = ["Derick Eddington"]
+# edition = "2015"
+rust-version = "1.0.0"
