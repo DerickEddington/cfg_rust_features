@@ -127,7 +127,7 @@ use std::hash::Hash;
 use std::iter::FromIterator;
 
 pub use errors::UnsupportedFeatureTodoError;
-use errors::VersionCheckError;
+use errors::{unsupported_feature_todo_error, VersionCheckError};
 pub use helpers::emit_warning;
 use recognized::Probe;
 
@@ -388,7 +388,7 @@ impl CfgRustFeatures
     {
         let feature = try!(
             recognized::get(feature_name)
-                .ok_or_else(|| UnsupportedFeatureTodoError::new(feature_name))
+                .ok_or_else(|| unsupported_feature_todo_error(feature_name))
         );
         let enabled = match feature.probe {
             Probe::Expr(e) => self.autocfg.probe_expression(e),

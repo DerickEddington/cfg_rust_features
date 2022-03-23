@@ -8,15 +8,23 @@ pub struct UnsupportedFeatureTodoError(String);
 
 impl UnsupportedFeatureTodoError
 {
-    /// (Actually private to the crate, not part of public API.  Is only `pub` for old Rust
-    /// versions.)
-    pub fn new(feature_name: &str) -> Self
+    fn new(feature_name: &str) -> Self
     {
         UnsupportedFeatureTodoError(format!(
             "To request support for feature {:?}, open an issue at: {}",
             feature_name, "https://github.com/DerickEddington/cfg_rust_features"
         ))
     }
+}
+
+/// Create a new [`UnsupportedFeatureTodoError`].
+///
+/// This exists to avoid `pub`licly exposing [`UnsupportedFeatureTodoError::new`].
+///
+/// (Actually private to the crate, not part of public API.  Is only `pub` for old Rust versions.)
+pub fn unsupported_feature_todo_error(feature_name: &str) -> UnsupportedFeatureTodoError
+{
+    UnsupportedFeatureTodoError::new(feature_name)
 }
 
 impl Error for UnsupportedFeatureTodoError
