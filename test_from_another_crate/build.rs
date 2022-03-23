@@ -3,7 +3,7 @@ extern crate cfg_rust_features;
 
 fn main()
 {
-    emit!(&[
+    emit!(vec![
         "cfg_version",
         "destructuring_assignment",
         "inner_deref",

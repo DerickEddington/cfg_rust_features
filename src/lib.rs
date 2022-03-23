@@ -120,6 +120,7 @@ mod errors;
 mod helpers;
 mod recognized;
 
+use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::hash::Hash;
@@ -132,8 +133,8 @@ use recognized::Probe;
 
 
 /// Name of a feature, as recognized by this crate.
-pub trait FeatureName: AsRef<str> + Eq + Hash {}
-impl<T: AsRef<str> + Eq + Hash> FeatureName for T {}
+pub trait FeatureName: Borrow<str> + Eq + Hash {}
+impl<T: Borrow<str> + Eq + Hash> FeatureName for T {}
 
 /// Name of a feature category, as defined by this crate.
 pub type FeatureCategory = &'static str;
@@ -332,7 +333,7 @@ impl CfgRustFeatures
         let enabled_features = try!(self.probe_multiple(features_names));
 
         for (name, enabled) in &enabled_features {
-            self.emit_single(name.as_ref(), enabled);
+            self.emit_single(name.borrow(), enabled);
         }
         Ok(enabled_features)
     }
@@ -353,7 +354,7 @@ impl CfgRustFeatures
         let mut enabled_features = HashMap::new();
 
         for name in features_names {
-            let enabled = try!(self.probe_single(name.as_ref()));
+            let enabled = try!(self.probe_single(name.borrow()));
             let _ = enabled_features.insert(name, enabled);
         }
         Ok(enabled_features)
@@ -433,7 +434,7 @@ mod tests
     {
         use std::error::Error;
 
-        let features_names = &["rust1", "bogusness", "dummy"];
+        let features_names = vec!["rust1", "bogusness", "dummy"];
         let cfg_rust_features = CfgRustFeatures::for_test("unittest-lib-error").unwrap();
         let result = cfg_rust_features.emit_multiple(features_names);
 
@@ -441,5 +442,23 @@ mod tests
         assert_eq!(result.unwrap_err().description(),
                    "To request support for feature \"bogusness\", open an issue at: \
                     https://github.com/DerickEddington/cfg_rust_features");
+    }
+
+    #[test]
+    fn generic()
+    {
+        use std::borrow::Cow;
+        use std::collections::BTreeSet;
+        use std::iter::FromIterator;
+
+        let cfg_rust_features = CfgRustFeatures::for_test("unittest-lib-generic").unwrap();
+        {
+            let features_names = vec![String::from("rust1")];
+            let _enabled_features = cfg_rust_features.emit_multiple(features_names).unwrap();
+        }
+        {
+            let features_names = BTreeSet::from_iter(vec![Cow::from("rust1")]);
+            let _enabled_features = cfg_rust_features.emit_multiple(features_names).unwrap();
+        }
     }
 }
