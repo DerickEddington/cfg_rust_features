@@ -7,7 +7,7 @@ extern crate test;
 mod tests
 {
     #[allow(dead_code)]
-    mod bad
+    mod never_type_hack
     {
         pub type Never = <F as HasOutput>::Output;
 
@@ -123,6 +123,6 @@ mod tests
     #[test]
     fn unwrap_infallible()
     {
-        assert_eq!(1, Ok::<_, bad::Never>(1).into_ok());
+        assert_eq!(1, Ok::<_, never_type_hack::Never>(1).into_ok());
     }
 }

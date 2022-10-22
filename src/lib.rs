@@ -44,11 +44,13 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
   If your workaround was to have an `into_ok` method on `Result<T, Infallible>`, such detection
   could be done like:
   ```rust
+  # use std::convert::Infallible;
+  #
   #[cfg_attr(rust_lib_feature = "unwrap_infallible", deprecated)]
   trait IntoOk { /* ... */ }
 
   #[cfg(not(rust_lib_feature = "unwrap_infallible"))]
-  impl<T> IntoOk for Result<T, std::convert::Infallible> { /* ... */ }
+  impl<T> IntoOk for Result<T, Infallible> { /* ... */ }
   ```
 
 - To have benchmarks (which require a `nightly` compiler) that do not interfere with using a

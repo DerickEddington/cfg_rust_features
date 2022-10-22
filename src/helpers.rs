@@ -13,7 +13,11 @@ pub fn emit_cargo_instruction(
     if let Some(arg) = arg {
         assert!(!arg.is_empty());
     }
-    println!("cargo:{}{}", instruction, arg.map(|s| format!("={}", s)).unwrap_or("".into()));
+    println!(
+        "cargo:{}{}",
+        instruction,
+        arg.map(|s| format!("={}", s)).unwrap_or_else(String::new)
+    );
 }
 
 /// Tell Cargo to display the given warning message after a build script has finished running.
