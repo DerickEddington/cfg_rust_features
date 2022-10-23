@@ -24,6 +24,46 @@ mod tests
         pub type F = fn() -> !;
     }
 
+    #[cfg(rust_lang_feature = "arbitrary_self_types")]
+    #[test]
+    fn arbitrary_self_types()
+    {
+        struct Wrap<T>(T);
+
+        impl<T> core::ops::Deref for Wrap<T>
+        {
+            type Target = T;
+
+            fn deref(&self) -> &Self::Target
+            {
+                &self.0
+            }
+        }
+
+        trait Trait
+        {
+            fn trait_method(self: Wrap<&Self>) -> &Self
+            {
+                &self.0
+            }
+        }
+
+        struct Thing<T>(T);
+
+        impl<T> Trait for Thing<T> {}
+
+        impl<T: Copy> Thing<T>
+        {
+            fn inherent_method(self: &Wrap<Self>) -> T
+            {
+                (self.0).0
+            }
+        }
+
+        assert!(Wrap(&Thing(true)).trait_method().0);
+        assert!(Wrap(Thing(true)).inherent_method());
+    }
+
     #[cfg(rust_lang_feature = "cfg_version")]
     #[test]
     fn cfg_version()

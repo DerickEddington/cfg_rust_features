@@ -1,6 +1,6 @@
 [package]
 name = "cfg_rust_features"
-version = "0.1.0"
+version = "0.1.1-pre"
 description = "Set cfg options according to probing for Rust compiler, language, and library features."
 authors = ["Derick Eddington"]
 license = "Unlicense"

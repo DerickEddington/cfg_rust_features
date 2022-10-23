@@ -4,6 +4,7 @@ extern crate cfg_rust_features;
 fn main()
 {
     emit!(vec![
+        "arbitrary_self_types",
         "cfg_version",
         "destructuring_assignment",
         "inner_deref",

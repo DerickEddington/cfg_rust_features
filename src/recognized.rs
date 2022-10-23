@@ -33,6 +33,23 @@ pub enum Probe
 /// is a unit-test that checks this.
 const DEFINITION: &'static [Feature] = &[
     Feature {
+        name:       "arbitrary_self_types",
+        categories: &["lang"],
+        probe:      Probe::Expr(
+            r#"{
+                   struct Thing;
+                   struct Wrap<T: ?Sized>(T);
+                   impl<T: ?Sized> std::ops::Deref for Wrap<T> {
+                       type Target = T;
+                       fn deref(&self) -> &Self::Target { &self.0 }
+                   }
+                   trait WrapSelf { fn m(self: Wrap<Self>); }
+                   impl WrapSelf for Thing { fn m(self: Wrap<Self>) {} }
+                   Wrap(Thing).m()
+               }"#,
+        ),
+    },
+    Feature {
         name:       "cfg_version",
         categories: &["lang"],
         probe:      Probe::Expr(r#"{ #[cfg(version("1.0"))] struct X; X }"#),

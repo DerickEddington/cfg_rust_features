@@ -276,6 +276,7 @@ impl CfgRustFeatures
     /// #     fn make_try_work() -> ResultDynErr<()> {
     /// let gathered_info_instance = try!(CfgRustFeatures::new());
     /// let enabled_features = try!(gathered_info_instance.emit_multiple(vec![
+    ///     "arbitrary_self_types",
     ///     "cfg_version",
     ///     "destructuring_assignment",
     ///     "inner_deref",

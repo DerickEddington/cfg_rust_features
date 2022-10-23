@@ -31,6 +31,7 @@ fn pretend_build_script() -> ResultDynErr<EnabledFeatures>
     emit_rerun_if_changed_file(file!());
 
     Ok(try!(try!(CfgRustFeatures::new()).emit_multiple(vec![
+        "arbitrary_self_types",
         // "cfg_version",  // Omitted to exercise not giving a supported one.
         "inner_deref",
         "destructuring_assignment",
@@ -109,6 +110,7 @@ fn assert_enabled_features(enabled: &EnabledFeatures)
     let required = hset![("rust1", bset!["comp", "lang", "lib"])];
     let optional = hset![
         ("unstable_features", bset!["comp"]),
+        ("arbitrary_self_types", bset!["lang"]),
         ("destructuring_assignment", bset!["lang"]),
         ("never_type", bset!["lang"]),
         ("question_mark", bset!["lang"]),
