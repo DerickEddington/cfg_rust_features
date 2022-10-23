@@ -93,7 +93,7 @@ const DEFINITION: &'static [Feature] = &[
     Feature {
         name:       "unwrap_infallible",
         categories: &["lib"],
-        probe:      Probe::Expr("Ok::<(), core::convert::Infallible>(()).into_ok()"),
+        probe:      Probe::Expr("Ok::<(), !>(()).into_ok()"),
     },
 ];
 
