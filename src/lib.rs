@@ -53,6 +53,52 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
   impl<T> IntoOk for Result<T, Infallible> { /* ... */ }
   ```
 
+- To enable unstable features only when using a `nightly` (or `dev`) compiler:
+  ```rust
+  #![cfg_attr(rust_comp_feature = "unstable_features", feature(step_trait))]
+
+  #[cfg(rust_comp_feature = "unstable_features")]
+  fn maybe_use_step_trait() { /* ... */ }
+  ```
+  This avoids needing some Cargo package feature (e.g. `"unstable"`) for this, which some projects
+  might prefer.
+
+  Or, enabling unstable features can be done only when the feature is not yet stabilized, and not
+  done if/when a feature becomes stable, like:
+  ```ignore
+  #![cfg_attr(not(rust_lib_feature = "step_trait"), feature(step_trait))]
+
+  fn assume_step_trait_is_available() { /* ... */ }
+  ```
+
+  Or, a package could anticipate that future versions of itself will have breaking changes due to
+  plans to adopt some Rust features if/when they become stable, and the package could provide a
+  non-default Cargo package feature that enables building like this in order to experiment with
+  this, while the default and other package features continue to uphold the stability of the API.
+  This anticipatory package feature can be made to automatically use either the stable or unstable
+  Rust feature, so that it works both before and after a Rust feature is stabilized, before
+  developing changes to the stable API, by doing something like:
+  ```rust
+  #![cfg_attr(
+      all(feature = "anticipate", not(rust_lib_feature = "step_trait")),
+      feature(step_trait)
+  )]
+
+  # macro_rules! cfg_if { ( $( $x:tt )* ) => {} }
+  #
+  cfg_if! {
+      if #[cfg(feature = "anticipate")] {
+          // Break the API to use anticipated Rust features,
+          // whether still unstable or recently stable.
+          pub fn assume_step_trait_is_available() { /* ... */ }
+      }
+      else {
+          // Stable API that works with older stable versions of Rust.
+          pub fn do_not_use_step_trait() { /* ... */ }
+      }
+  }
+  ```
+
 - To have benchmarks (which (as of 2022-10-23) require a `nightly` compiler) that do not interfere
   with using a `stable` compiler, without needing some extra package feature.  This enables using
   Cargo options like `--all-targets` (which includes `--benches`) with a `stable` compiler without
