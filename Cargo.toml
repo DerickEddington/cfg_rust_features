@@ -1,6 +1,6 @@
 [package]
 name = "cfg_rust_features"
-version = "0.1.1-pre"
+version = "0.1.1"
 description = "Set cfg options according to probing for Rust compiler, language, and library features."
 authors = ["Derick Eddington"]
 license = "Unlicense"
@@ -10,7 +10,7 @@ rust-version = "1.0.0"
 readme = "README.md"
 categories = ["development-tools::build-utils", "rust-patterns"]
 keywords = ["cfg", "version", "autoconf", "build", "rustc"]
-include = ["src/"]
+include = ["src/", "tests/"]
 
 [workspace]
 exclude = [
