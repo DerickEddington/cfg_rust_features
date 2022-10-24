@@ -10,7 +10,7 @@ rust-version = "1.0.0"
 readme = "README.md"
 categories = ["development-tools::build-utils", "rust-patterns"]
 keywords = ["cfg", "version", "autoconf", "build", "rustc"]
-exclude = [".cargo/", ".gitmodules"]
+include = ["src/"]
 
 [workspace]
 exclude = [
