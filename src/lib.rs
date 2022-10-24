@@ -85,8 +85,9 @@ cargo doc --open
 // Remember to run `cargo readme --no-license > README.md` and re-adjust the fenced code blocks to
 // be of type `rust`, when changing the above doc-comment.
 
+// These lints are chosen to work with Rust versions as old as 1.0.0.
 #![forbid(unsafe_code)]
-#![allow(unknown_lints, deprecated, bare_trait_objects)]
+#![allow(unknown_lints)]
 // Warn about desired lints that would otherwise be allowed by default.
 #![warn(
     // Groups
@@ -111,6 +112,8 @@ cargo doc --open
     unused_results,
     variant_size_differences,
 )]
+// (Must be after the above `warn` groups, for (some of) these to have effect.)
+#![allow(deprecated, bare_trait_objects, absolute_paths_not_starting_with_crate, keyword_idents)]
 // Warn about this one but avoid annoying hits for dev-dependencies.
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
