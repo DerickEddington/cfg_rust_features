@@ -188,8 +188,11 @@ mod tests
     fn test(_bencher: &mut test::Bencher) {}
 
     #[cfg(rust_comp_feature = "unstable_features")]
-    #[bench]
-    fn unstable_features(_bencher: &mut test::Bencher) {}
+    #[test]
+    fn unstable_features()
+    {
+        #![allow(dead_code)]
+    }
 
     #[cfg(rust_lib_feature = "unwrap_infallible")]
     #[test]
