@@ -52,17 +52,53 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
   impl<T> IntoOk for Result<T, Infallible> { /* ... */ }
   ```
 
-- To have benchmarks (which require a `nightly` compiler) that do not interfere with using a
-  `stable` compiler, without needing some extra package feature.  This enables using Cargo options
-  like `--all-targets` (which includes `--benches`) with a `stable` compiler without error, which
-  can be especially helpful with IDE tools which use that.  This is done, at the top of some
-  `benches/whatever.rs`, like:
+- To have benchmarks (which (as of 2022-10-23) require a `nightly` compiler) that do not interfere
+  with using a `stable` compiler, without needing some extra package feature.  This enables using
+  Cargo options like `--all-targets` (which includes `--benches`) with a `stable` compiler without
+  error, which can be especially helpful with tools which use that.  This is done, at the top of
+  some `benches/whatever.rs`, like:
   ```rust
   #![cfg(rust_comp_feature = "unstable_features")]
   /* ... */
   ```
   and thus `benches/` targets are effectively empty with a `stable` compiler but are non-empty
   with `nightly`, automatically without needing to remember to give `--features`.
+
+  Further, `benches/` targets can be made to adjust if a future version of Rust stabilizes its
+  benchmarking `test` feature and if a future version of this crate adds support for that feature,
+  and targets can still be made to work while the feature is unstable, like:
+  ```rust
+  // If provided by either stable or unstable feature, have this target
+  // be non-empty.
+  #![cfg(any(
+      // Only set/true when the currently-used version of the
+      // cfg_rust_features crate supports it and it is stable in the
+      // currently-used version of Rust.
+      rust_lib_feature = "test",
+      // Only set/true when a nightly (or dev) compiler is being used.
+      rust_comp_feature = "unstable_features"
+  ))]
+  // Else, a stable compiler version without the feature is being used,
+  // so have this target be empty to cause all the below items to be
+  // ignored as if they do not exist.
+
+  #![cfg_attr(
+      // If the feature is still unstable
+      not(rust_lib_feature = "test"),
+      // then it needs to be specially enabled.
+      feature(test)
+  )]
+  // Else if the feature is stable, #![feature(test)] is not needed.
+
+  // Valid whenever the feature is enabled, whether stable or unstable.
+  extern crate test;
+
+  /* ... */
+  ```
+  and thus this code, at the top of the file at least, should never need to be changed both when
+  the feature is unstable and when it later becomes stable (unless the feature itself changes
+  while unstable, of course); and, also, this code will continue to be valid with older versions
+  of Rust where the feature is considered unstable even after a newer version stabilizes it.
 
 ## Stability Policy
 
