@@ -64,6 +64,19 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
   and thus `benches/` targets are effectively empty with a `stable` compiler but are non-empty
   with `nightly`, automatically without needing to remember to give `--features`.
 
+## Stability Policy
+
+The API follows the normal Cargo SemVer policy, with the qualification that it is allowed for the
+error behavior of future versions having the same primary number to change somewhat:
+
+- Future versions may change to support additional feature names and so no longer error for those.
+  But once a feature name is supported it will not be removed and so will never error for that and
+  future versions.
+
+- Future versions may change to possibly return different `Error` types behind `dyn Error` when
+  creating instances of `CfgRustFeatures`, due to internal changes in how the probing is done and
+  in which dependencies are used.  But the use of the `Box<dyn Error>` type will remain stable.
+
 ## Minimum Supported Rust Version
 
 Rust `1.0.0` will always be supported, so this crate can be used by other crates which support
