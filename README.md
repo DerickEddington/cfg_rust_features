@@ -95,6 +95,12 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
       }
   }
   ```
+  (Note: This would not follow the recommended convention that package [features should be
+  additive](https://doc.rust-lang.org/1.64.0/cargo/reference/features.html#semver-compatibility),
+  but some projects might be ok with this, because the purpose of such an `"anticipate"` feature
+  is very limited and clear and so users of it should know to not use it for their stable needs,
+  and because this approach can help avoid needing a separate branch to have such experimental
+  changes and this could help keep development of both the stable and experimental APIs in-sync.)
 
 - To have benchmarks (which (as of 2022-10-23) require a `nightly` compiler) that do not interfere
   with using a `stable` compiler, without needing some extra package feature.  This enables using
@@ -108,9 +114,10 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
   and thus `benches/` targets are effectively empty with a `stable` compiler but are non-empty
   with `nightly`, automatically without needing to remember to give `--features`.
 
-  Further, `benches/` targets can be made to adjust if a future version of Rust stabilizes its
-  benchmarking `test` feature and if a future version of this crate adds support for that feature,
-  and targets can still be made to work while the feature is unstable, like:
+  Further, targets can be made to adjust if a future version of Rust stabilizes a feature,
+  e.g. the benchmarking `test` feature, and if a future version of this crate adds support for
+  that feature; and targets can still be made to work while the feature is unstable and while this
+  crate does not have support, like:
   ```rust
   // If provided by either stable or unstable feature, have this target
   // be non-empty.
@@ -139,10 +146,10 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
 
   /* ... */
   ```
-  and thus this code, at the top of the file at least, should never need to be changed both when
-  the feature is unstable and when it later becomes stable (unless the feature itself changes
-  while unstable, of course); and, also, this code will continue to be valid with older versions
-  of Rust where the feature is considered unstable even after a newer version stabilizes it.
+  and thus this code, at the top of the file at least, should not need to be changed both when the
+  feature is unstable and when it later becomes stable (unless the feature itself changes while
+  unstable, of course); and, also, this code will continue to be valid with older versions of Rust
+  where the feature is considered unstable even after a newer version stabilizes it.
 
 ## Stability Policy
 
