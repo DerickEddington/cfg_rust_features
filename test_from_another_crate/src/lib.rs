@@ -1,7 +1,32 @@
-#![cfg_attr(rust_comp_feature = "unstable_features", feature(test))]
-#[cfg(rust_comp_feature = "unstable_features")]
-extern crate test;
+#![cfg_attr(
+    // The "test" feature is currently unrecognized by the `cfg_rust_features` crate, and so this
+    // demonstrates and exercises the design pattern of using `cfg` with such in anticipation of
+    // the possibility of it becoming both recognized and stable.  This design pattern is
+    // intentionally supported by the `cfg_rust_features` crate.
+    all(not(rust_lib_feature = "test"), rust_comp_feature = "unstable_features"),
+    // A nightly (or dev) compiler is being used and the feature is still unstable.
+    feature(test)
+)]
+#![cfg_attr(
+    special_dev_test = "enable-unstable-features",
+    // For development testing, pretend that the recognized features have become stable.
+    feature(
+        arbitrary_self_types,
+        cfg_version,
+        destructuring_assignment,
+        inner_deref,
+        iter_zip,
+        never_type,
+        question_mark,
+        step_trait,
+        unwrap_infallible,
+    )
+)]
 
+// Similar to above, this uses a currently-unrecognized feature.
+#[cfg(any(rust_lib_feature = "test", rust_comp_feature = "unstable_features"))]
+// Either: the feature has become stable, or a nightly (or dev) compiler is being used.
+extern crate test;
 
 #[cfg(test)]
 mod tests
@@ -68,14 +93,15 @@ mod tests
     #[test]
     fn cfg_version()
     {
-        // Old Rust versions would error if a non-identifier were used in the `version` form (like
-        // the feature's RFC 2523 specifies), so we leave it empty so old versions do not error.
-        // Hopefully this empty form will become an error if the feature is stabilized in future
-        // versions, so that we can reevaluate how this test case should be based on the final
-        // stabilized specification of the feature.
-        #[cfg(version())]
-        struct S;
-        let _ = S;
+        // Prevent old Rust versions from erroring on the attribute syntax.
+        macro_rules! shield {
+            () => {
+                #[cfg(version("1.0.0"))]
+                struct S;
+                let _ = S;
+            };
+        }
+        shield!();
     }
 
     #[cfg(rust_lang_feature = "destructuring_assignment")]
@@ -155,6 +181,12 @@ mod tests
         assert_eq!(Some(2), f(1))
     }
 
+    // Similar to above, this exercises using a `cfg` option that is currently unsupported by the
+    // `cfg_rust_features` crate but that possibly could be supported in the future.
+    #[cfg(rust_lib_feature = "test")]
+    #[bench]
+    fn test(_bencher: &mut test::Bencher) {}
+
     #[cfg(rust_comp_feature = "unstable_features")]
     #[bench]
     fn unstable_features(_bencher: &mut test::Bencher) {}
@@ -164,5 +196,14 @@ mod tests
     fn unwrap_infallible()
     {
         assert_eq!(1, Ok::<_, never_type_hack::Never>(1).into_ok());
+    }
+
+    // This exercises using a non-existent feature that both Rust and the `cfg_rust_features`
+    // crate and will never support, and so this item should never be compiled.
+    #[cfg(rust_comp_feature = "SubGenius_Bogusness")]
+    #[test]
+    fn SubGenius_Bogusness()
+    {
+        assert!(false);
     }
 }

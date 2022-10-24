@@ -1,0 +1,4 @@
+[submodule "testing/autocfg/probe-with-unstable-features"]
+	path = testing/autocfg/probe-with-unstable-features
+	url = https://github.com/DerickEddington/autocfg.git
+	branch = probe-with-unstable-features

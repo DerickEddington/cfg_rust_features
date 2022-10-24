@@ -1,0 +1,14 @@
+# (Note: This file's name intentionally ommits the .toml extension, so that
+# older versions of Cargo will also use it.)
+
+# Uncomment the below, to be able to run the packages' tests with hacks that
+# pretend that the recognized features have become stable.  This ability is
+# essential for actually exercising (compiling and running) the
+# conditionally-compiled code that normally would only be included when
+# currently-unstable features have become stable.
+#
+# [build]
+# rustflags = ["--cfg", 'special_dev_test="enable-unstable-features"']
+#
+# [patch.crates-io]
+# autocfg = { path = "./testing/autocfg/probe-with-unstable-features" }

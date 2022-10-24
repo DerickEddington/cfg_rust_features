@@ -10,12 +10,18 @@ rust-version = "1.0.0"
 readme = "README.md"
 categories = ["development-tools::build-utils", "rust-patterns"]
 keywords = ["cfg", "version", "autoconf", "build", "rustc"]
+exclude = [".cargo/", ".gitmodules"]
 
 [workspace]
-# The `test_from_another_crate` package is independent, not a member of the
-# workspace, since it's a peculiar kind of integration test that tests
-# independent use.
-exclude = ["test_from_another_crate"]
+exclude = [
+  # The `test_from_another_crate` package is independent, not a member of the
+  # workspace, since it's a peculiar kind of integration test that tests
+  # independent use.
+  "test_from_another_crate",
+  # Specially-modified `autocfg` package(s) that are not part of the workspace,
+  # and that are only for special development tests.
+  "testing/autocfg",
+]
 
 [dependencies]
 autocfg = "1"
