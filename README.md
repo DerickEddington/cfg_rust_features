@@ -70,38 +70,6 @@ option that can be detected and set when a `nightly` (or `dev`) compiler is used
   fn assume_step_trait_is_available() { /* ... */ }
   ```
 
-  Or, a package could anticipate that future versions of itself will have breaking changes due to
-  plans to adopt some Rust features if/when they become stable, and the package could provide a
-  non-default Cargo package feature that enables building like this in order to experiment with
-  this, while the default and other package features continue to uphold the stability of the API.
-  This anticipatory package feature can be made to automatically use either the stable or unstable
-  Rust feature, so that it works both before and after a Rust feature is stabilized, before
-  developing changes to the stable API, by doing something like:
-  ```rust
-  #![cfg_attr(
-      all(feature = "anticipate", not(rust_lib_feature = "step_trait")),
-      feature(step_trait)
-  )]
-
-  cfg_if! {
-      if #[cfg(feature = "anticipate")] {
-          // Break the API to use anticipated Rust features,
-          // whether still unstable or recently stable.
-          pub fn assume_step_trait_is_available() { /* ... */ }
-      }
-      else {
-          // Stable API that works with older stable versions of Rust.
-          pub fn do_not_use_step_trait() { /* ... */ }
-      }
-  }
-  ```
-  (Note: This would not follow the recommended convention that package [features should be
-  additive](https://doc.rust-lang.org/1.64.0/cargo/reference/features.html#semver-compatibility),
-  but some projects might be ok with this, because the purpose of such an `"anticipate"` feature
-  is very limited and clear and so users of it should know to not use it for their stable needs,
-  and because this approach can help avoid needing a separate branch to have such experimental
-  changes and this could help keep development of both the stable and experimental APIs in-sync.)
-
 - To have benchmarks (which (as of 2022-10-23) require a `nightly` compiler) that do not interfere
   with using a `stable` compiler, without needing some extra package feature.  This enables using
   Cargo options like `--all-targets` (which includes `--benches`) with a `stable` compiler without
