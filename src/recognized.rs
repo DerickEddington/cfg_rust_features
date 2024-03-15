@@ -60,6 +60,11 @@ const DEFINITION: &'static [Feature] = &[
         probe:      Probe::Expr("{ let (_a, _b); (_a, _b) = (1, 2); }"),
     },
     Feature {
+        name:       "error_in_core",
+        categories: &["lib"],
+        probe:      Probe::Expr("{ let _: &core::error::Error; }"),
+    },
+    Feature {
         name:       "inner_deref",
         categories: &["lib"],
         probe:      Probe::Expr("Ok::<_, ()>(vec![1]).as_deref()"),

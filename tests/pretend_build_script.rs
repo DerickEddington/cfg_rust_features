@@ -35,6 +35,7 @@ fn pretend_build_script() -> ResultDynErr<EnabledFeatures>
         // "cfg_version",  // Omitted to exercise not giving a supported one.
         "inner_deref",
         "destructuring_assignment",
+        "error_in_core",
         "iter_zip",
         "never_type",
         "question_mark",
@@ -114,6 +115,7 @@ fn assert_enabled_features(enabled: &EnabledFeatures)
         ("destructuring_assignment", bset!["lang"]),
         ("never_type", bset!["lang"]),
         ("question_mark", bset!["lang"]),
+        ("error_in_core", bset!["lib"]),
         ("inner_deref", bset!["lib"]),
         ("iter_zip", bset!["lib"]),
         ("step_trait", bset!["lib"]),

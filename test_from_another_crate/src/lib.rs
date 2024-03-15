@@ -14,6 +14,7 @@
         arbitrary_self_types,
         cfg_version,
         destructuring_assignment,
+        error_in_core,
         inner_deref,
         iter_zip,
         never_type,
@@ -111,6 +112,14 @@ mod tests
         let (a, b);
         (a, b) = (true, false);
         assert_ne!(a, b);
+    }
+
+    #[cfg(rust_lib_feature = "error_in_core")]
+    #[test]
+    fn error_in_core()
+    {
+        let e: &core::error::Error = &std::fmt::Error;
+        assert!(e.is::<std::fmt::Error>());
     }
 
     #[cfg(rust_lib_feature = "inner_deref")]
